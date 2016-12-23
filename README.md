@@ -17,7 +17,9 @@ Create templates for adding to the DOM out of pure javascript:
       
       table: function(data) {
         return $table(
+          {cn: "myTableClass"},
           $thead(
+            {cn: "myTableHeadClass"},
             $tr(
               $jst(data.headings).$th()
             )
