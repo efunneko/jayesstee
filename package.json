@@ -12,7 +12,7 @@
     "type": "git",
     "url": "https://github.com/efunneko/jayesstee.git"
   },
-  "main": "index.js",
+  "main": "dist/jayesstee.js",
   "scripts": {
     "build": "babel src -d dist",
     "lint": "eslint src tests",
