@@ -6,7 +6,7 @@ function jst(selector) {
   else {
     return new JstElement(el);
   }
-};
+}
 
 export default jst;
 
@@ -29,7 +29,7 @@ class JstElement {
       this.tag = tag.tagName.toLowerCase();
       this.el  = tag;
     }
-    
+
     this._processParams(params);
 
     if (this.el) {
@@ -40,7 +40,7 @@ class JstElement {
 
   appendChild() {
     this.isDomified = false;
-    
+
     this._processParams(arguments);
     if (this.el) {
       this.dom();
@@ -48,29 +48,26 @@ class JstElement {
   }
 
   replaceChild() {
-
     if (this.el) {
       this.el.innerHTML = "";
     }
 
-    let wasDomified = this.isDomified;
     this.isDomified = false;
     this.contents   = [];
     this.atts       = [];
     this.props      = [];
 
     this.appendChild.apply(this, arguments);
-    
   }
-  
-  // Return HTML 
+
+  // Return HTML
   html(opts) {
     let html = "";
 
     if (!opts)       { opts = {}; }
     if (!opts.depth) { opts.depth = 0; }
     if (opts.indent) { html += " ".repeat(opts.indent * opts.depth++); }
-    
+
     html += "<" + this.tag;
 
     let attrs = [];
@@ -83,7 +80,7 @@ class JstElement {
     if (this.props.length) {
       html += " " + this.props.join(" ");
     }
-    
+
     html += ">";
 
     if (opts.indent) {
@@ -124,8 +121,7 @@ class JstElement {
   }
 
   // Return an HTMLElement
-  dom(opts) {
-
+  dom() {
     let el = this.el || document.createElement(this.tag);
 
     if (!this.isDomified) {
@@ -138,41 +134,38 @@ class JstElement {
     }
 
     for (let item of this.contents) {
-      if (!item.el && !item.value.el) {
-        if (item.type === "jst") {
-          el.appendChild(item.value.dom());
+      if (item.type === "jst") {
+        let hasEl   = item.value.el;
+        let childEl = item.value.dom();
+        if (!hasEl) {
+          el.appendChild(childEl);
         }
-        else if (item.type === "textnode") {
+      }
+      else if (item.type === "textnode") {
+        if (!item.el) {
           item.el             = document.createElement("span");
           item.el.textContent = item.value;
           el.appendChild(item.el);
         }
-        else {
-          console.warn("Unexpected content type while dominating:", item.type);
-        }
+      }
+      else {
+        console.warn("Unexpected content type while dominating:", item.type);
       }
     }
 
     this.el         = el;
     this.isDomified = true;
     return el;
-    
   }
 
   delete() {
-
     // Remove all items associated with this JstElement
     for (let item of this.contents) {
-      if (item.type === "jst") {
-        item.value.delete();
-      }
-      else if (item.type === "textnode" && item.el && item.el.parentNode) {
-        // Remove the span element
-        item.el.parentNode.removeChild(item.el);
-      }
-      else {
-        console.warn("Unexpected content type while deleting:", item.type);
-      }
+      this._deleteItem(item);
+    }
+
+    for (let stampName of Object.keys(this.stamps)) {
+      jst.deleteStamp(stampName);
     }
 
     // Delete this element, if present
@@ -182,38 +175,39 @@ class JstElement {
       }
     }
 
-    this.el = undefined;
+    delete this.el;
+
     this.tag      = "-deleted-";
     this.contents = [];
     this.attrs    = {};
     this.props    = [];
     this.stamps   = {};
-    
   }
 
-  reStamp(stampName, params) {
-
+  reStamp(stampName, template, params) {
     // Reinsert the stamp - this requires removing the old one too
     let stampInfo = this.stamps[stampName];
 
     if (!stampInfo) {
-      console.error("Can't find requested stamp (", stampName, ") for reStamping");
+      throw new Error("Can't find requested stamp (" + stampName + ") for reStamping");
     }
 
     let stamp = stampInfo.stamp;
 
     // Go through the contents and remove all the ones that are for this stamp
     let firstIndex = -1;
-    let index = 0;
-    let count = 0;
+    let index      = 0;
+    let count      = 0;
     for (let item of this.contents) {
       if (item.stampName && item.stampName === stampName) {
         if (item.type === "jst") {
           item.value.delete();
         }
-        else if (item.type === "textnode" && item.el && item.el.parentNode) {
-          // Remove the span element
-          item.el.parentNode.removeChild(item.el);
+        else if (item.type === "textnode") {
+          if (item.el && item.el.parentNode) {
+            // Remove the span element
+            item.el.parentNode.removeChild(item.el);
+          }
         }
         else {
           console.warn("Unexpected content type while deleting:", item.type);
@@ -229,6 +223,10 @@ class JstElement {
     // Re-add the stamp
     if (params && params.length > 0) {
       stamp.setParams(params);
+    }
+
+    if (template) {
+      stamp.setTemplate(template);
     }
 
     let trailingContents = this.contents.slice(firstIndex);
@@ -250,19 +248,120 @@ class JstElement {
     if (this.isDomified) {
       this.dom();
     }
-
-    
   }
-  
-  _processParams(params, stampName) {
 
+  update(stampName, params) {
+    let stampInfo = this.stamps[stampName];
+
+    if (!stampInfo) {
+      throw new Error("Can't find requested stamp (" + stampName + ") for reStamping");
+    }
+
+    let stamp = stampInfo.stamp;
+
+    if (params && params.length > 0) {
+      stamp.setParams(params);
+    }
+
+    // Create a new JST tree that will be compared against the existing one
+    let items = stamp.getTemplate().apply(this, stamp.getParams());
+
+    // newJst will contain the new stamped tree
+    let newJst = new JstElement("div");
+    newJst._processParams([items], stamp.getName());
+
+    this._compareAndCopy(newJst, stamp.getName());
+
+    // If we were already domified, then redo it for the new elements
+    if (this.isDomified) {
+      this.dom();
+    }
+  }
+
+  _compareAndCopy(newJst, stampName) {
+    let oldIndex = 0;
+    let newIndex = 0;
+
+    while (true) {
+      let oldItem = this.contents[oldIndex];
+      let newItem = newJst.contents[newIndex];
+
+      if (!oldItem || !newItem) {
+        break;
+      }
+
+      if (stampName && oldItem.stampName !== stampName) {
+        oldIndex++;
+        continue;
+      }
+
+      if (oldItem.type !== newItem.type) {
+        break;
+      }
+
+      if (oldItem.type === "jst") {
+        if (oldItem.value.tag !== newItem.value.tag) {
+          break;
+        }
+        // If the tags are the same, then we must descend and compare
+        oldItem.value._compareAndCopy(newItem.value);
+      }
+      else if (oldItem.type === "textnode" && oldItem.value !== newItem.value) {
+        if (oldItem.el) {
+          oldItem.el.textContent = newItem.value;
+        }
+        oldItem.value = newItem.value;
+      }
+
+      oldIndex++;
+      newIndex++;
+    }
+
+    // Need to copy stuff - first delete all the old contents
+    let oldStartIndex = oldIndex;
+    let oldItem       = this.contents[oldIndex];
+
+    while (oldItem) {
+      if (stampName && oldItem.stampName !== stampName) {
+        break;
+      }
+      this._deleteItem(oldItem);
+      oldIndex++;
+      oldItem = this.contents[oldIndex];
+    }
+
+    this.contents.splice(oldStartIndex, oldIndex - oldStartIndex);
+
+    if (newJst.contents[newIndex]) {
+      // Remove the old stuff and insert the new
+      let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
+      this.contents.splice(oldStartIndex, 0, ...newItems);
+    }
+  }
+
+  _deleteItem(contentsItem) {
+    if (contentsItem.type === "jst") {
+        contentsItem.value.delete();
+    }
+    else if (contentsItem.type === "textnode") {
+      if (contentsItem.el && contentsItem.el.parentNode) {
+        // Remove the span element
+        contentsItem.el.parentNode.removeChild(contentsItem.el);
+        delete contentsItem.el;
+      }
+    }
+    else {
+      console.warn("Unexpected content type while deleting:", contentsItem.type);
+    }
+  }
+
+  _processParams(params, stampName) {
     params = jst._flatten.apply(this, params);
-    
+
     if (typeof params === "undefined") {
       params = [];
     }
     for (let param of params) {
-
       let type = typeof(param);
 
       if (type === "number" || type === "string") {
@@ -289,7 +388,7 @@ class JstElement {
           if (typeof(param[name]) === "undefined") {
             param[name] = "";
           }
-          if (name === "properties" && this._objType(param.properties) === "Array") {
+          if (name === "properties" && param.properties instanceof Array) {
             for (let prop of param.properties) {
               this.props.push(prop);
             }
@@ -308,29 +407,16 @@ class JstElement {
       else {
         console.log("Unknown JstElement parameter type: ", type);
       }
-      
     }
-
   }
-  
+
 
   // Some helpers
-  _objType(obj) {
-    if (typeof(obj) === 'undefined') {
-      return 'undefined';
-    }
-    var results = obj.constructor.toString().match(/(function|class) (.{1,}?)\s*(\(|{)/);
-    return (results && results.length > 2) ? results[2] : '';
-  }
-
   _quoteAttrValue(value) {
-    // TODO
-    return value;
+    return value.replace(/"/, '\"');
   }
 
 }
-
-
 
 // JstStamp Class
 //
@@ -368,39 +454,31 @@ class JstStamp {
   setParent(parent) {
     this.parent = parent;
   }
-
 }
 
 
-jst.fn = jst.prototype = {
-
-};
+jst.fn = jst.prototype = {};
 
 
 // Shrunken version of jQuery's extend
 jst.extend = jst.fn.extend = function() {
-
   let target = this;
   let length = arguments.length;
-  
+
   for (let i = 0; i < length; i++) {
-
     let options;
-    if ((options = arguments[i]) != null) {
+    if ((options = arguments[i]) !== null) {
+      for (let name in options) {
+        let copy = options[name];
 
-      for (let name in options ) {
+        // Prevent never-ending loop
+        if (target === copy) {
+          continue;
+        }
 
-	let src  = target[ name ];
-	let copy = options[ name ];
-
-	// Prevent never-ending loop
-	if ( target === copy ) {
-	  continue;
-	}
-
-        if ( copy !== undefined ) {
-	  target[ name ] = copy;
-	}
+        if (copy !== undefined) {
+          target[name] = copy;
+        }
       }
     }
   }
@@ -413,25 +491,25 @@ jst.extend = jst.fn.extend = function() {
 jst.extend({
   tagPrefix: "$",
   tags: [
-      'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base',
-      'bdi', 'bdo', 'blockquote', 'body', 'br', 'button', 'canvas', 'caption',
-      'cite', 'code', 'col', 'colgroup', 'command', 'data', 'datalist', 'dd',
-      'del', 'details', 'dfn', 'div', 'dl', 'dt', 'em', 'embed', 'fieldset',
-      'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5',
-      'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'i', 'iframe', 'img', 'input',
-      'ins', 'kbd', 'keygen', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark', 'math',
-      'menu', 'meta', 'meter', 'nav', 'noscript', 'object', 'ol', 'optgroup', 'option',
-      'output', 'p', 'param', 'pre', 'progress', 'q', 'rp', 'rt', 'ruby', 's',
-      'samp', 'script', 'section', 'select', 'small', 'source', 'span', 'strong',
-      'style', 'sub', 'summary', 'sup', 'svg', 'table', 'tbody', 'td', 'textarea',
-      'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul', 'var',
-      'video', 'wbr'
+    'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base',
+    'bdi', 'bdo', 'blockquote', 'body', 'br', 'button', 'canvas', 'caption',
+    'cite', 'code', 'col', 'colgroup', 'command', 'data', 'datalist', 'dd',
+    'del', 'details', 'dfn', 'div', 'dl', 'dt', 'em', 'embed', 'fieldset',
+    'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5',
+    'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'i', 'iframe', 'img', 'input',
+    'ins', 'kbd', 'keygen', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark', 'math',
+    'menu', 'meta', 'meter', 'nav', 'noscript', 'object', 'ol', 'optgroup', 'option',
+    'output', 'p', 'param', 'pre', 'progress', 'q', 'rp', 'rt', 'ruby', 's',
+    'samp', 'script', 'section', 'select', 'small', 'source', 'span', 'strong',
+    'style', 'sub', 'summary', 'sup', 'svg', 'table', 'tbody', 'td', 'textarea',
+    'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul', 'var',
+    'video', 'wbr'
   ],
   stamps: {},
-  
+
   addCustomElements: function() {
     let names = jst._flatten.apply(this, arguments);
-    
+
     for (let name of names) {
       let fullName = jst.tagPrefix + name;
       jst[fullName] = function() {
@@ -439,10 +517,9 @@ jst.extend({
         return (new JstElement(name, args));
       };
     }
-
   },
 
-  
+
   init: function() {
     jst.addCustomElements(jst.tags);
   },
@@ -456,7 +533,7 @@ jst.extend({
     if (this.stamps[name]) {
       let i = 0;
       while (true) {
-        newName = `name-${i}`;
+        newName = `${name}-${i}`;
         if (!this.stamps[newName]) {
           break;
         }
@@ -465,19 +542,29 @@ jst.extend({
       console.warn("Naming conflict with stamp. Requested name:", name, " actual:", newName);
     }
 
-    return this.stamps[newName] = new JstStamp(newName, template, theRest);
-    
+    this.stamps[newName] = new JstStamp(newName, template, theRest);
+
+    return this.stamps[newName];
   },
 
-  reStamp: function(stampName, ...params) {
-
+  reStamp: function(stampName, template, ...params) {
     let stamp = this.stamps[stampName];
     if (!stamp) {
-      console.error("Unknown stamp name:", stampName);
+      throw new Error("Unknown stamp name: " + stampName);
     }
+    stamp.getParent().reStamp(stampName, template, params);
+  },
 
-    stamp.getParent().reStamp(stampName, params);
-    
+  update: function(stampName, ...params) {
+    let stamp = this.stamps[stampName];
+    if (!stamp) {
+      throw new Error("Unknown stamp name: " + stampName);
+    }
+    stamp.getParent().update(stampName, params);
+  },
+
+  deleteStamp: function(stampName) {
+    delete this.stamps[stampName];
   },
 
   makeGlobal: function(prefix) {
@@ -486,7 +573,6 @@ jst.extend({
     for (let tag of jst.tags) {
       let name = jst.globalTagPrefix + tag;
       let g = typeof global !== 'undefined' ? global : window;
-      let self = this;
       g[name] = function() {
         return jst[name].apply(this, arguments);
       };
@@ -498,7 +584,8 @@ jst.extend({
     for (var i = 0; i < arguments.length; i++) {
       if (arguments[i] instanceof Array) {
         flat.push.apply(flat, jst._flatten.apply(this, arguments[i]));
-      } else if (arguments[i] instanceof Function) {
+      }
+      else if (arguments[i] instanceof Function) {
         let result = arguments[i]();
         if (result instanceof Array) {
           flat.push.apply(flat, jst._flatten.apply(this, result));
@@ -506,14 +593,13 @@ jst.extend({
         else {
           flat.push(result);
         }
-      } else {
+      }
+      else {
         flat.push(arguments[i]);
       }
     }
     return flat;
   }
-    
-
 
 });
 
