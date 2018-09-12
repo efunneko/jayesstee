@@ -102,3 +102,4 @@ Add a div with an unordered-list into the body of the page:
     jst("body").appendChild(t.page(data));
 
 
+_Copyright 2018 Edward Funnekotter All rights reserved_
