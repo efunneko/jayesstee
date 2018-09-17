@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.JstObject = undefined;
 
 var _from = require("babel-runtime/core-js/array/from");
 
@@ -32,24 +33,63 @@ var _createClass2 = require("babel-runtime/helpers/createClass");
 
 var _createClass3 = _interopRequireDefault(_createClass2);
 
+exports.jst = jst;
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function jst(selector) {
-  var el = document.querySelector(selector);
-  if (!el) {
-    return new JstElement();
+function jst(selectorOrElement) {
+  if (selectorOrElement instanceof HTMLElement) {
+    return new JstElement(selectorOrElement);
   } else {
-    return new JstElement(el);
+    var el = document.querySelector(selectorOrElement);
+    if (!el) {
+      return new JstElement();
+    } else {
+      return new JstElement(el);
+    }
   }
 }
 
 exports.default = jst;
+
+
+var globalJstId = 1;
+
+// JstObject Class
+//
+// This class is a base class for all classes that are
+// renderable within jayesstee. For a user-defined class to
+// be successfully redered, it must extend this class and
+// implement the render() method
+
+var JstObject = exports.JstObject = function () {
+  function JstObject() {
+    (0, _classCallCheck3.default)(this, JstObject);
+
+    this._jstId = globalJstId++;
+  }
+
+  (0, _createClass3.default)(JstObject, [{
+    key: "refresh",
+    value: function refresh() {
+      var stampName = "_jst_" + this._jstId;
+      jst.update(stampName);
+    }
+  }, {
+    key: "render",
+    value: function render() {
+      return "override in descendants";
+    }
+  }]);
+  return JstObject;
+}();
 
 // JstElement Class
 //
 // This class represents an HTML element. On creation
 // it is just a scaffold that can be either inserted into
 // the DOM (in a browser) or serialized into HTML.
+
 
 var JstElement = function () {
   function JstElement(tag, params) {
@@ -61,6 +101,7 @@ var JstElement = function () {
     this.props = [];
     this.events = {};
     this.stamps = {};
+    this.opts = {};
 
     if (tag instanceof HTMLElement) {
       // Wrapping an element with a JstElement
@@ -214,8 +255,16 @@ var JstElement = function () {
 
   }, {
     key: "dom",
-    value: function dom() {
+    value: function dom(lastStampName) {
       var el = this.el || document.createElement(this.tag);
+
+      if (this.ref && lastStampName) {
+        var stamp = jst.stamps[lastStampName];
+        if (stamp && stamp.getContext()) {
+          var context = stamp.getContext();
+          context[this.ref] = this;
+        }
+      }
 
       if (!this.isDomified) {
         var _iteratorNormalCompletion3 = true;
@@ -296,6 +345,43 @@ var JstElement = function () {
         }
       }
 
+      var nextEl = void 0;
+      for (var i = this.contents.length - 1; i >= 0; i--) {
+        var item = this.contents[i];
+        if (item.type === "jst") {
+          var hasEl = item.value.el;
+          var childEl = item.value.dom(item.stampName || lastStampName);
+          if (!hasEl) {
+            if (nextEl) {
+              el.insertBefore(childEl, nextEl);
+            } else {
+              el.appendChild(childEl);
+            }
+          }
+          nextEl = childEl;
+        } else if (item.type === "textnode") {
+          if (!item.el) {
+            item.el = document.createElement("span");
+            item.el.textContent = item.value;
+            if (nextEl) {
+              el.insertBefore(item.el, nextEl);
+            } else {
+              el.appendChild(item.el);
+            }
+          }
+        } else {
+          console.warn("Unexpected content type while dominating:", item.type);
+        }
+      }
+
+      this.el = el;
+      this.isDomified = true;
+      return el;
+    }
+  }, {
+    key: "delete",
+    value: function _delete() {
+      // Remove all items associated with this JstElement
       var _iteratorNormalCompletion6 = true;
       var _didIteratorError6 = false;
       var _iteratorError6 = undefined;
@@ -304,21 +390,7 @@ var JstElement = function () {
         for (var _iterator6 = (0, _getIterator3.default)(this.contents), _step6; !(_iteratorNormalCompletion6 = (_step6 = _iterator6.next()).done); _iteratorNormalCompletion6 = true) {
           var item = _step6.value;
 
-          if (item.type === "jst") {
-            var hasEl = item.value.el;
-            var childEl = item.value.dom();
-            if (!hasEl) {
-              el.appendChild(childEl);
-            }
-          } else if (item.type === "textnode") {
-            if (!item.el) {
-              item.el = document.createElement("span");
-              item.el.textContent = item.value;
-              el.appendChild(item.el);
-            }
-          } else {
-            console.warn("Unexpected content type while dominating:", item.type);
-          }
+          this._deleteItem(item);
         }
       } catch (err) {
         _didIteratorError6 = true;
@@ -335,24 +407,18 @@ var JstElement = function () {
         }
       }
 
-      this.el = el;
-      this.isDomified = true;
-      return el;
-    }
-  }, {
-    key: "delete",
-    value: function _delete() {
-      // Remove all items associated with this JstElement
       var _iteratorNormalCompletion7 = true;
       var _didIteratorError7 = false;
       var _iteratorError7 = undefined;
 
       try {
-        for (var _iterator7 = (0, _getIterator3.default)(this.contents), _step7; !(_iteratorNormalCompletion7 = (_step7 = _iterator7.next()).done); _iteratorNormalCompletion7 = true) {
-          var item = _step7.value;
+        for (var _iterator7 = (0, _getIterator3.default)((0, _keys2.default)(this.stamps)), _step7; !(_iteratorNormalCompletion7 = (_step7 = _iterator7.next()).done); _iteratorNormalCompletion7 = true) {
+          var stampName = _step7.value;
 
-          this._deleteItem(item);
+          jst.deleteStamp(stampName);
         }
+
+        // Delete this element, if present
       } catch (err) {
         _didIteratorError7 = true;
         _iteratorError7 = err;
@@ -364,33 +430,6 @@ var JstElement = function () {
         } finally {
           if (_didIteratorError7) {
             throw _iteratorError7;
-          }
-        }
-      }
-
-      var _iteratorNormalCompletion8 = true;
-      var _didIteratorError8 = false;
-      var _iteratorError8 = undefined;
-
-      try {
-        for (var _iterator8 = (0, _getIterator3.default)((0, _keys2.default)(this.stamps)), _step8; !(_iteratorNormalCompletion8 = (_step8 = _iterator8.next()).done); _iteratorNormalCompletion8 = true) {
-          var stampName = _step8.value;
-
-          jst.deleteStamp(stampName);
-        }
-
-        // Delete this element, if present
-      } catch (err) {
-        _didIteratorError8 = true;
-        _iteratorError8 = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion8 && _iterator8.return) {
-            _iterator8.return();
-          }
-        } finally {
-          if (_didIteratorError8) {
-            throw _iteratorError8;
           }
         }
       }
@@ -425,13 +464,13 @@ var JstElement = function () {
       var firstIndex = -1;
       var index = 0;
       var count = 0;
-      var _iteratorNormalCompletion9 = true;
-      var _didIteratorError9 = false;
-      var _iteratorError9 = undefined;
+      var _iteratorNormalCompletion8 = true;
+      var _didIteratorError8 = false;
+      var _iteratorError8 = undefined;
 
       try {
-        for (var _iterator9 = (0, _getIterator3.default)(this.contents), _step9; !(_iteratorNormalCompletion9 = (_step9 = _iterator9.next()).done); _iteratorNormalCompletion9 = true) {
-          var item = _step9.value;
+        for (var _iterator8 = (0, _getIterator3.default)(this.contents), _step8; !(_iteratorNormalCompletion8 = (_step8 = _iterator8.next()).done); _iteratorNormalCompletion8 = true) {
+          var item = _step8.value;
 
           if (item.stampName && item.stampName === stampName) {
             if (item.type === "jst") {
@@ -450,16 +489,16 @@ var JstElement = function () {
           index++;
         }
       } catch (err) {
-        _didIteratorError9 = true;
-        _iteratorError9 = err;
+        _didIteratorError8 = true;
+        _iteratorError8 = err;
       } finally {
         try {
-          if (!_iteratorNormalCompletion9 && _iterator9.return) {
-            _iterator9.return();
+          if (!_iteratorNormalCompletion8 && _iterator8.return) {
+            _iterator8.return();
           }
         } finally {
-          if (_didIteratorError9) {
-            throw _iteratorError9;
+          if (_didIteratorError8) {
+            throw _iteratorError8;
           }
         }
       }
@@ -496,7 +535,7 @@ var JstElement = function () {
     }
   }, {
     key: "update",
-    value: function update(stampName, params) {
+    value: function update(stampName, params, forceUpdate) {
       var stampInfo = this.stamps[stampName];
 
       if (!stampInfo) {
@@ -510,13 +549,14 @@ var JstElement = function () {
       }
 
       // Create a new JST tree that will be compared against the existing one
-      var items = stamp.getTemplate().apply(this, stamp.getParams());
+      var context = stamp.getContext() || this;
+      var items = stamp.getTemplate().apply(context, stamp.getParams());
 
       // newJst will contain the new stamped tree
       var newJst = new JstElement("div");
       newJst._processParams([items], stamp.getName());
 
-      this._compareAndCopy(newJst, true, stamp.getName());
+      this._compareAndCopy(newJst, true, stamp.getName(), forceUpdate);
 
       // If we were already domified, then redo it for the new elements
       if (this.isDomified) {
@@ -528,25 +568,28 @@ var JstElement = function () {
 
   }, {
     key: "_compareAndCopy",
-    value: function _compareAndCopy(newJst, topNode, stampName) {
+    value: function _compareAndCopy(newJst, topNode, stampName, forceUpdate) {
       var oldIndex = 0;
       var newIndex = 0;
 
       // First check the attributes, props and events
       // But only if we aren't the topNode
       if (!topNode) {
-        if (this.tag !== newJst.tag) {
+        if (forceUpdate || this.opts.forceUpdate || this.tag !== newJst.tag) {
           return true;
         }
 
+        // Blindly copy the JST options
+        this.opts = newJst.opts;
+
         // Just fix all the attributes inline
-        var _iteratorNormalCompletion10 = true;
-        var _didIteratorError10 = false;
-        var _iteratorError10 = undefined;
+        var _iteratorNormalCompletion9 = true;
+        var _didIteratorError9 = false;
+        var _iteratorError9 = undefined;
 
         try {
-          for (var _iterator10 = (0, _getIterator3.default)((0, _keys2.default)(this.attrs)), _step10; !(_iteratorNormalCompletion10 = (_step10 = _iterator10.next()).done); _iteratorNormalCompletion10 = true) {
-            var attrName = _step10.value;
+          for (var _iterator9 = (0, _getIterator3.default)((0, _keys2.default)(this.attrs)), _step9; !(_iteratorNormalCompletion9 = (_step9 = _iterator9.next()).done); _iteratorNormalCompletion9 = true) {
+            var attrName = _step9.value;
 
             if (!newJst.attrs[attrName]) {
               delete this.attrs[attrName];
@@ -561,6 +604,36 @@ var JstElement = function () {
             }
           }
         } catch (err) {
+          _didIteratorError9 = true;
+          _iteratorError9 = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion9 && _iterator9.return) {
+              _iterator9.return();
+            }
+          } finally {
+            if (_didIteratorError9) {
+              throw _iteratorError9;
+            }
+          }
+        }
+
+        var _iteratorNormalCompletion10 = true;
+        var _didIteratorError10 = false;
+        var _iteratorError10 = undefined;
+
+        try {
+          for (var _iterator10 = (0, _getIterator3.default)((0, _keys2.default)(newJst.attrs)), _step10; !(_iteratorNormalCompletion10 = (_step10 = _iterator10.next()).done); _iteratorNormalCompletion10 = true) {
+            var _attrName = _step10.value;
+
+            if (!this.attrs[_attrName]) {
+              this.attrs[_attrName] = newJst.attrs[_attrName];
+              if (this.isDomified) {
+                this.el.setAttribute(_attrName, newJst.attrs[_attrName]);
+              }
+            }
+          }
+        } catch (err) {
           _didIteratorError10 = true;
           _iteratorError10 = err;
         } finally {
@@ -571,36 +644,6 @@ var JstElement = function () {
           } finally {
             if (_didIteratorError10) {
               throw _iteratorError10;
-            }
-          }
-        }
-
-        var _iteratorNormalCompletion11 = true;
-        var _didIteratorError11 = false;
-        var _iteratorError11 = undefined;
-
-        try {
-          for (var _iterator11 = (0, _getIterator3.default)((0, _keys2.default)(newJst.attrs)), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
-            var _attrName = _step11.value;
-
-            if (!this.attrs[_attrName]) {
-              this.attrs[_attrName] = newJst.attrs[_attrName];
-              if (this.isDomified) {
-                this.el.setAttribute(_attrName, newJst.attrs[_attrName]);
-              }
-            }
-          }
-        } catch (err) {
-          _didIteratorError11 = true;
-          _iteratorError11 = err;
-        } finally {
-          try {
-            if (!_iteratorNormalCompletion11 && _iterator11.return) {
-              _iterator11.return();
-            }
-          } finally {
-            if (_didIteratorError11) {
-              throw _iteratorError11;
             }
           }
         }
@@ -624,15 +667,40 @@ var JstElement = function () {
 
           if (fixProps) {
             if (this.isDomified) {
+              var _iteratorNormalCompletion11 = true;
+              var _didIteratorError11 = false;
+              var _iteratorError11 = undefined;
+
+              try {
+                for (var _iterator11 = (0, _getIterator3.default)(this.props), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
+                  var prop = _step11.value;
+
+                  delete this.el[prop];
+                }
+              } catch (err) {
+                _didIteratorError11 = true;
+                _iteratorError11 = err;
+              } finally {
+                try {
+                  if (!_iteratorNormalCompletion11 && _iterator11.return) {
+                    _iterator11.return();
+                  }
+                } finally {
+                  if (_didIteratorError11) {
+                    throw _iteratorError11;
+                  }
+                }
+              }
+
               var _iteratorNormalCompletion12 = true;
               var _didIteratorError12 = false;
               var _iteratorError12 = undefined;
 
               try {
-                for (var _iterator12 = (0, _getIterator3.default)(this.props), _step12; !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
-                  var prop = _step12.value;
+                for (var _iterator12 = (0, _getIterator3.default)(newJst.props), _step12; !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
+                  var _prop = _step12.value;
 
-                  delete this.el[prop];
+                  this.el[_prop] = true;
                 }
               } catch (err) {
                 _didIteratorError12 = true;
@@ -648,44 +716,19 @@ var JstElement = function () {
                   }
                 }
               }
-
-              var _iteratorNormalCompletion13 = true;
-              var _didIteratorError13 = false;
-              var _iteratorError13 = undefined;
-
-              try {
-                for (var _iterator13 = (0, _getIterator3.default)(newJst.props), _step13; !(_iteratorNormalCompletion13 = (_step13 = _iterator13.next()).done); _iteratorNormalCompletion13 = true) {
-                  var _prop = _step13.value;
-
-                  this.el[_prop] = true;
-                }
-              } catch (err) {
-                _didIteratorError13 = true;
-                _iteratorError13 = err;
-              } finally {
-                try {
-                  if (!_iteratorNormalCompletion13 && _iterator13.return) {
-                    _iterator13.return();
-                  }
-                } finally {
-                  if (_didIteratorError13) {
-                    throw _iteratorError13;
-                  }
-                }
-              }
             }
             this.props = newJst.props;
           }
         }
 
         // Fix all the events
-        var _iteratorNormalCompletion14 = true;
-        var _didIteratorError14 = false;
-        var _iteratorError14 = undefined;
+        var _iteratorNormalCompletion13 = true;
+        var _didIteratorError13 = false;
+        var _iteratorError13 = undefined;
 
         try {
-          for (var _iterator14 = (0, _getIterator3.default)((0, _keys2.default)(this.events)), _step14; !(_iteratorNormalCompletion14 = (_step14 = _iterator14.next()).done); _iteratorNormalCompletion14 = true) {
-            var eventName = _step14.value;
+          for (var _iterator13 = (0, _getIterator3.default)((0, _keys2.default)(this.events)), _step13; !(_iteratorNormalCompletion13 = (_step13 = _iterator13.next()).done); _iteratorNormalCompletion13 = true) {
+            var eventName = _step13.value;
 
             if (!newJst.events[eventName]) {
               delete this.events[eventName];
@@ -698,6 +741,36 @@ var JstElement = function () {
                 this.el.addEventListener(eventName, newJst.events[eventName].listener);
               }
               this.events[eventName] = newJst.events[eventName];
+            }
+          }
+        } catch (err) {
+          _didIteratorError13 = true;
+          _iteratorError13 = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion13 && _iterator13.return) {
+              _iterator13.return();
+            }
+          } finally {
+            if (_didIteratorError13) {
+              throw _iteratorError13;
+            }
+          }
+        }
+
+        var _iteratorNormalCompletion14 = true;
+        var _didIteratorError14 = false;
+        var _iteratorError14 = undefined;
+
+        try {
+          for (var _iterator14 = (0, _getIterator3.default)((0, _keys2.default)(newJst.events)), _step14; !(_iteratorNormalCompletion14 = (_step14 = _iterator14.next()).done); _iteratorNormalCompletion14 = true) {
+            var _eventName = _step14.value;
+
+            if (!this.events[_eventName]) {
+              this.events[_eventName] = newJst.events[_eventName];
+              if (this.isDomified) {
+                this.el.addEventListener(_eventName, newJst.events[_eventName].listener);
+              }
             }
           }
         } catch (err) {
@@ -714,70 +787,42 @@ var JstElement = function () {
             }
           }
         }
-
-        var _iteratorNormalCompletion15 = true;
-        var _didIteratorError15 = false;
-        var _iteratorError15 = undefined;
-
-        try {
-          for (var _iterator15 = (0, _getIterator3.default)((0, _keys2.default)(newJst.events)), _step15; !(_iteratorNormalCompletion15 = (_step15 = _iterator15.next()).done); _iteratorNormalCompletion15 = true) {
-            var _eventName = _step15.value;
-
-            if (!this.events[_eventName]) {
-              this.events[_eventName] = newJst.events[_eventName];
-              if (this.isDomified) {
-                this.el.addEventListener(_eventName, newJst.events[_eventName].listener);
-              }
-            }
-          }
-        } catch (err) {
-          _didIteratorError15 = true;
-          _iteratorError15 = err;
-        } finally {
-          try {
-            if (!_iteratorNormalCompletion15 && _iterator15.return) {
-              _iterator15.return();
-            }
-          } finally {
-            if (_didIteratorError15) {
-              throw _iteratorError15;
-            }
-          }
-        }
       }
 
-      while (true) {
-        var _oldItem = this.contents[oldIndex];
-        var newItem = newJst.contents[newIndex];
+      if (!forceUpdate && !this.opts.forceUpdate) {
+        while (true) {
+          var _oldItem = this.contents[oldIndex];
+          var newItem = newJst.contents[newIndex];
 
-        if (!_oldItem || !newItem) {
-          break;
-        }
-
-        if (stampName && _oldItem.stampName !== stampName) {
-          oldIndex++;
-          continue;
-        }
-
-        if (_oldItem.type !== newItem.type) {
-          break;
-        }
-
-        if (_oldItem.type === "jst") {
-          // If the tags are the same, then we must descend and compare
-          var doReplace = _oldItem.value._compareAndCopy(newItem.value, false);
-          if (doReplace) {
+          if (!_oldItem || !newItem) {
             break;
           }
-        } else if (_oldItem.type === "textnode" && _oldItem.value !== newItem.value) {
-          if (_oldItem.el) {
-            _oldItem.el.textContent = newItem.value;
-          }
-          _oldItem.value = newItem.value;
-        }
 
-        oldIndex++;
-        newIndex++;
+          if (stampName && _oldItem.stampName !== stampName) {
+            oldIndex++;
+            continue;
+          }
+
+          if (_oldItem.type !== newItem.type) {
+            break;
+          }
+
+          if (_oldItem.type === "jst") {
+            // If the tags are the same, then we must descend and compare
+            var doReplace = _oldItem.value._compareAndCopy(newItem.value, false);
+            if (doReplace) {
+              break;
+            }
+          } else if (_oldItem.type === "textnode" && _oldItem.value !== newItem.value) {
+            if (_oldItem.el) {
+              _oldItem.el.textContent = newItem.value;
+            }
+            _oldItem.value = newItem.value;
+          }
+
+          oldIndex++;
+          newIndex++;
+        }
       }
 
       // Need to copy stuff - first delete all the old contents
@@ -828,53 +873,97 @@ var JstElement = function () {
       if (typeof params === "undefined") {
         params = [];
       }
-      var _iteratorNormalCompletion16 = true;
-      var _didIteratorError16 = false;
-      var _iteratorError16 = undefined;
+      var _iteratorNormalCompletion15 = true;
+      var _didIteratorError15 = false;
+      var _iteratorError15 = undefined;
 
       try {
-        for (var _iterator16 = (0, _getIterator3.default)(params), _step16; !(_iteratorNormalCompletion16 = (_step16 = _iterator16.next()).done); _iteratorNormalCompletion16 = true) {
-          var param = _step16.value;
+        for (var _iterator15 = (0, _getIterator3.default)(params), _step15; !(_iteratorNormalCompletion15 = (_step15 = _iterator15.next()).done); _iteratorNormalCompletion15 = true) {
+          var param = _step15.value;
 
           var type = typeof param === "undefined" ? "undefined" : (0, _typeof3.default)(param);
 
           if (type === "number" || type === "string") {
             this.contents.push({ type: "textnode", value: param, stampName: stampName });
-          } else if (param instanceof JstElement) {
-            this.contents.push({ type: "jst", value: param, stampName: stampName });
-          } else if (param instanceof JstStamp) {
-            var stamp = param;
-            this.stamps[param.getName()] = {
+          } else if (param instanceof JstObject) {
+            var _stampName = "_jst_" + param._jstId;
+            var stamp = jst.stamp(_stampName, param.render, param);
+            stamp.setContext(param);
+
+            this.stamps[_stampName] = {
               stamp: stamp,
               index: this.contents.length
             };
             stamp.setParent(this);
-            var items = stamp.getTemplate().apply(this, stamp.getParams());
-            this._processParams([items], stamp.getName());
+
+            var items = param.render();
+            this._processParams([items], _stampName);
+          } else if (param instanceof JstElement) {
+            this.contents.push({ type: "jst", value: param, stampName: stampName });
+          } else if (param instanceof JstStamp) {
+            var _stamp = param;
+            this.stamps[param.getName()] = {
+              stamp: _stamp,
+              index: this.contents.length
+            };
+            _stamp.setParent(this);
+            var _items = _stamp.getTemplate().apply(this, _stamp.getParams());
+            this._processParams([_items], _stamp.getName());
           } else if (typeof HTMLElement !== 'undefined' && param instanceof HTMLElement) {
             this.contents.push({ type: "jst", value: new JstElement(param), stampName: stampName });
           } else if (type === "object") {
-            var _iteratorNormalCompletion17 = true;
-            var _didIteratorError17 = false;
-            var _iteratorError17 = undefined;
+            var _iteratorNormalCompletion16 = true;
+            var _didIteratorError16 = false;
+            var _iteratorError16 = undefined;
 
             try {
-              for (var _iterator17 = (0, _getIterator3.default)((0, _keys2.default)(param)), _step17; !(_iteratorNormalCompletion17 = (_step17 = _iterator17.next()).done); _iteratorNormalCompletion17 = true) {
-                var name = _step17.value;
+              for (var _iterator16 = (0, _getIterator3.default)((0, _keys2.default)(param)), _step16; !(_iteratorNormalCompletion16 = (_step16 = _iterator16.next()).done); _iteratorNormalCompletion16 = true) {
+                var name = _step16.value;
 
                 if (typeof param[name] === "undefined") {
                   param[name] = "";
                 }
-                if (name === "properties" && param.properties instanceof Array) {
+                if (name === "jstOptions" && param.jstOptions instanceof Object) {
+                  this.opts = param.jstOptions;
+                } else if (name === "properties" && param.properties instanceof Array) {
+                  var _iteratorNormalCompletion17 = true;
+                  var _didIteratorError17 = false;
+                  var _iteratorError17 = undefined;
+
+                  try {
+                    for (var _iterator17 = (0, _getIterator3.default)(param.properties), _step17; !(_iteratorNormalCompletion17 = (_step17 = _iterator17.next()).done); _iteratorNormalCompletion17 = true) {
+                      var prop = _step17.value;
+
+                      this.props.push(prop);
+                    }
+                  } catch (err) {
+                    _didIteratorError17 = true;
+                    _iteratorError17 = err;
+                  } finally {
+                    try {
+                      if (!_iteratorNormalCompletion17 && _iterator17.return) {
+                        _iterator17.return();
+                      }
+                    } finally {
+                      if (_didIteratorError17) {
+                        throw _iteratorError17;
+                      }
+                    }
+                  }
+                } else if (name === "events" && (0, _typeof3.default)(param.events) === "object") {
                   var _iteratorNormalCompletion18 = true;
                   var _didIteratorError18 = false;
                   var _iteratorError18 = undefined;
 
                   try {
-                    for (var _iterator18 = (0, _getIterator3.default)(param.properties), _step18; !(_iteratorNormalCompletion18 = (_step18 = _iterator18.next()).done); _iteratorNormalCompletion18 = true) {
-                      var prop = _step18.value;
+                    for (var _iterator18 = (0, _getIterator3.default)((0, _keys2.default)(param.events)), _step18; !(_iteratorNormalCompletion18 = (_step18 = _iterator18.next()).done); _iteratorNormalCompletion18 = true) {
+                      var event = _step18.value;
 
-                      this.props.push(prop);
+                      if (param.events[event] instanceof Function) {
+                        this.events[event] = { listener: param.events[event] };
+                      } else {
+                        this.events[event] = param.events[event];
+                      }
                     }
                   } catch (err) {
                     _didIteratorError18 = true;
@@ -890,35 +979,9 @@ var JstElement = function () {
                       }
                     }
                   }
-                } else if (name === "events" && (0, _typeof3.default)(param.events) === "object") {
-                  var _iteratorNormalCompletion19 = true;
-                  var _didIteratorError19 = false;
-                  var _iteratorError19 = undefined;
-
-                  try {
-                    for (var _iterator19 = (0, _getIterator3.default)((0, _keys2.default)(param.events)), _step19; !(_iteratorNormalCompletion19 = (_step19 = _iterator19.next()).done); _iteratorNormalCompletion19 = true) {
-                      var event = _step19.value;
-
-                      if (param.events[event] instanceof Function) {
-                        this.events[event] = { listener: param.events[event] };
-                      } else {
-                        this.events[event] = param.events[event];
-                      }
-                    }
-                  } catch (err) {
-                    _didIteratorError19 = true;
-                    _iteratorError19 = err;
-                  } finally {
-                    try {
-                      if (!_iteratorNormalCompletion19 && _iterator19.return) {
-                        _iterator19.return();
-                      }
-                    } finally {
-                      if (_didIteratorError19) {
-                        throw _iteratorError19;
-                      }
-                    }
-                  }
+                } else if (name === "ref") {
+                  this.ref = param[name];
+                  this.attrs.ref = param[name];
                 } else if (name === "cn") {
                   // A bit of magic for the "class" attribute: cn -> class
                   // We also will append to the class if there already is one
@@ -932,16 +995,16 @@ var JstElement = function () {
                 }
               }
             } catch (err) {
-              _didIteratorError17 = true;
-              _iteratorError17 = err;
+              _didIteratorError16 = true;
+              _iteratorError16 = err;
             } finally {
               try {
-                if (!_iteratorNormalCompletion17 && _iterator17.return) {
-                  _iterator17.return();
+                if (!_iteratorNormalCompletion16 && _iterator16.return) {
+                  _iterator16.return();
                 }
               } finally {
-                if (_didIteratorError17) {
-                  throw _iteratorError17;
+                if (_didIteratorError16) {
+                  throw _iteratorError16;
                 }
               }
             }
@@ -952,16 +1015,16 @@ var JstElement = function () {
           }
         }
       } catch (err) {
-        _didIteratorError16 = true;
-        _iteratorError16 = err;
+        _didIteratorError15 = true;
+        _iteratorError15 = err;
       } finally {
         try {
-          if (!_iteratorNormalCompletion16 && _iterator16.return) {
-            _iterator16.return();
+          if (!_iteratorNormalCompletion15 && _iterator15.return) {
+            _iterator15.return();
           }
         } finally {
-          if (_didIteratorError16) {
-            throw _iteratorError16;
+          if (_didIteratorError15) {
+            throw _iteratorError15;
           }
         }
       }
@@ -972,7 +1035,8 @@ var JstElement = function () {
   }, {
     key: "_quoteAttrValue",
     value: function _quoteAttrValue(value) {
-      return value.replace(/"/, '\"');
+      console.log("value:", value);
+      return value.replace ? value.replace(/"/, '\"') : value;
     }
   }]);
   return JstElement;
@@ -991,6 +1055,7 @@ var JstStamp = function () {
     this.name = name;
     this.template = template;
     this.params = params;
+    this.context = undefined;
     return this;
   }
 
@@ -1028,6 +1093,16 @@ var JstStamp = function () {
     key: "setParent",
     value: function setParent(parent) {
       this.parent = parent;
+    }
+  }, {
+    key: "getContext",
+    value: function getContext() {
+      return this.context;
+    }
+  }, {
+    key: "setContext",
+    value: function setContext(context) {
+      this.context = context;
     }
   }]);
   return JstStamp;
@@ -1070,13 +1145,13 @@ jst.extend({
   addCustomElements: function addCustomElements() {
     var names = jst._flatten.apply(this, arguments);
 
-    var _iteratorNormalCompletion20 = true;
-    var _didIteratorError20 = false;
-    var _iteratorError20 = undefined;
+    var _iteratorNormalCompletion19 = true;
+    var _didIteratorError19 = false;
+    var _iteratorError19 = undefined;
 
     try {
       var _loop = function _loop() {
-        var name = _step20.value;
+        var name = _step19.value;
 
         var fullName = jst.tagPrefix + name;
         jst[fullName] = function () {
@@ -1085,20 +1160,20 @@ jst.extend({
         };
       };
 
-      for (var _iterator20 = (0, _getIterator3.default)(names), _step20; !(_iteratorNormalCompletion20 = (_step20 = _iterator20.next()).done); _iteratorNormalCompletion20 = true) {
+      for (var _iterator19 = (0, _getIterator3.default)(names), _step19; !(_iteratorNormalCompletion19 = (_step19 = _iterator19.next()).done); _iteratorNormalCompletion19 = true) {
         _loop();
       }
     } catch (err) {
-      _didIteratorError20 = true;
-      _iteratorError20 = err;
+      _didIteratorError19 = true;
+      _iteratorError19 = err;
     } finally {
       try {
-        if (!_iteratorNormalCompletion20 && _iterator20.return) {
-          _iterator20.return();
+        if (!_iteratorNormalCompletion19 && _iterator19.return) {
+          _iterator19.return();
         }
       } finally {
-        if (_didIteratorError20) {
-          throw _iteratorError20;
+        if (_didIteratorError19) {
+          throw _iteratorError19;
         }
       }
     }
@@ -1154,7 +1229,20 @@ jst.extend({
       params[_key2 - 1] = arguments[_key2];
     }
 
-    stamp.getParent().update(stampName, params);
+    stamp.getParent().update(stampName, params, false);
+  },
+
+  forceUpdate: function forceUpdate(stampName) {
+    var stamp = this.stamps[stampName];
+    if (!stamp) {
+      throw new Error("Unknown stamp name: " + stampName);
+    }
+
+    for (var _len3 = arguments.length, params = Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+      params[_key3 - 1] = arguments[_key3];
+    }
+
+    stamp.getParent().update(stampName, params, true);
   },
 
   deleteStamp: function deleteStamp(stampName) {
@@ -1164,13 +1252,13 @@ jst.extend({
   makeGlobal: function makeGlobal(prefix) {
     jst.global = true;
     jst.globalTagPrefix = prefix || jst.tagPrefix;
-    var _iteratorNormalCompletion21 = true;
-    var _didIteratorError21 = false;
-    var _iteratorError21 = undefined;
+    var _iteratorNormalCompletion20 = true;
+    var _didIteratorError20 = false;
+    var _iteratorError20 = undefined;
 
     try {
       var _loop2 = function _loop2() {
-        var tag = _step21.value;
+        var tag = _step20.value;
 
         var name = jst.globalTagPrefix + tag;
         var g = typeof global !== 'undefined' ? global : window;
@@ -1179,20 +1267,20 @@ jst.extend({
         };
       };
 
-      for (var _iterator21 = (0, _getIterator3.default)(jst.tags), _step21; !(_iteratorNormalCompletion21 = (_step21 = _iterator21.next()).done); _iteratorNormalCompletion21 = true) {
+      for (var _iterator20 = (0, _getIterator3.default)(jst.tags), _step20; !(_iteratorNormalCompletion20 = (_step20 = _iterator20.next()).done); _iteratorNormalCompletion20 = true) {
         _loop2();
       }
     } catch (err) {
-      _didIteratorError21 = true;
-      _iteratorError21 = err;
+      _didIteratorError20 = true;
+      _iteratorError20 = err;
     } finally {
       try {
-        if (!_iteratorNormalCompletion21 && _iterator21.return) {
-          _iterator21.return();
+        if (!_iteratorNormalCompletion20 && _iterator20.return) {
+          _iterator20.return();
         }
       } finally {
-        if (_didIteratorError21) {
-          throw _iteratorError21;
+        if (_didIteratorError20) {
+          throw _iteratorError20;
         }
       }
     }

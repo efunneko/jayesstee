@@ -1,14 +1,42 @@
-function jst(selector) {
-  let el = document.querySelector(selector);
-  if (!el) {
-    return new JstElement();
+export function jst(selectorOrElement) {
+  if (selectorOrElement instanceof HTMLElement) {
+    return new JstElement(selectorOrElement);
   }
   else {
-    return new JstElement(el);
+    let el = document.querySelector(selectorOrElement);
+    if (!el) {
+      return new JstElement();
+    }
+    else {
+      return new JstElement(el);
+    }
   }
 }
 
 export default jst;
+
+let globalJstId = 1;
+
+// JstObject Class
+//
+// This class is a base class for all classes that are
+// renderable within jayesstee. For a user-defined class to
+// be successfully redered, it must extend this class and
+// implement the render() method
+export class JstObject {
+  constructor() {
+    this._jstId = globalJstId++;
+  }
+
+  refresh() {
+    let stampName = `_jst_${this._jstId}`;
+    jst.update(stampName);
+  }
+  
+  render() {
+    return "override in descendants";
+  }
+}
 
 
 // JstElement Class
@@ -24,6 +52,7 @@ class JstElement {
     this.props    = [];
     this.events   = {};
     this.stamps   = {};
+    this.opts     = {};
 
     if (tag instanceof HTMLElement) {
       // Wrapping an element with a JstElement
@@ -122,8 +151,16 @@ class JstElement {
   }
 
   // Return an HTMLElement
-  dom() {
+  dom(lastStampName) {
     let el = this.el || document.createElement(this.tag);
+
+    if (this.ref && lastStampName) {
+      let stamp = jst.stamps[lastStampName];
+      if (stamp && stamp.getContext()) {
+        let context = stamp.getContext();
+        context[this.ref] = this;
+      }
+    }
 
     if (!this.isDomified) {
       for (let attrName of Object.keys(this.attrs)) {
@@ -139,19 +176,32 @@ class JstElement {
       }
     }
 
-    for (let item of this.contents) {
+    let nextEl;
+    for (let i = this.contents.length-1; i >= 0; i--) {
+      let item = this.contents[i];
       if (item.type === "jst") {
         let hasEl   = item.value.el;
-        let childEl = item.value.dom();
+        let childEl = item.value.dom(item.stampName || lastStampName);
         if (!hasEl) {
-          el.appendChild(childEl);
+          if (nextEl) {
+            el.insertBefore(childEl, nextEl);
+          }
+          else {
+            el.appendChild(childEl);
+          }
         }
+        nextEl = childEl;
       }
       else if (item.type === "textnode") {
         if (!item.el) {
           item.el             = document.createElement("span");
           item.el.textContent = item.value;
-          el.appendChild(item.el);
+          if (nextEl) {
+            el.insertBefore(item.el, nextEl);
+          }
+          else {
+            el.appendChild(item.el);
+          }
         }
       }
       else {
@@ -256,7 +306,7 @@ class JstElement {
     }
   }
 
-  update(stampName, params) {
+  update(stampName, params, forceUpdate) {
     let stampInfo = this.stamps[stampName];
 
     if (!stampInfo) {
@@ -270,13 +320,14 @@ class JstElement {
     }
 
     // Create a new JST tree that will be compared against the existing one
-    let items = stamp.getTemplate().apply(this, stamp.getParams());
+    let context = stamp.getContext() || this;
+    let items   = stamp.getTemplate().apply(context, stamp.getParams());
 
     // newJst will contain the new stamped tree
     let newJst = new JstElement("div");
     newJst._processParams([items], stamp.getName());
 
-    this._compareAndCopy(newJst, true, stamp.getName());
+    this._compareAndCopy(newJst, true, stamp.getName(), forceUpdate);
 
     // If we were already domified, then redo it for the new elements
     if (this.isDomified) {
@@ -285,17 +336,20 @@ class JstElement {
   }
 
   // Returns true if upper layer needs to copy new Jst. False otherwise
-  _compareAndCopy(newJst, topNode, stampName) {
+  _compareAndCopy(newJst, topNode, stampName, forceUpdate) {
     let oldIndex = 0;
     let newIndex = 0;
 
     // First check the attributes, props and events
     // But only if we aren't the topNode
     if (!topNode) {
-      if (this.tag !== newJst.tag) {
+      if (forceUpdate || this.opts.forceUpdate || this.tag !== newJst.tag) {
         return true;
       }
 
+      // Blindly copy the JST options
+      this.opts = newJst.opts;
+      
       // Just fix all the attributes inline
       for (let attrName of Object.keys(this.attrs)) {
         if (!newJst.attrs[attrName]) {
@@ -376,42 +430,44 @@ class JstElement {
         }
       }
     }
-    
-    while (true) {
-      let oldItem = this.contents[oldIndex];
-      let newItem = newJst.contents[newIndex];
 
-      if (!oldItem || !newItem) {
-        break;
-      }
+    if (!forceUpdate && !this.opts.forceUpdate) {
+      while (true) {
+        let oldItem = this.contents[oldIndex];
+        let newItem = newJst.contents[newIndex];
 
-      if (stampName && oldItem.stampName !== stampName) {
-        oldIndex++;
-        continue;
-      }
-
-      if (oldItem.type !== newItem.type) {
-        break;
-      }
-
-      if (oldItem.type === "jst") {
-        // If the tags are the same, then we must descend and compare
-        let doReplace = oldItem.value._compareAndCopy(newItem.value, false);
-        if (doReplace) {
+        if (!oldItem || !newItem) {
           break;
         }
-      }
-      else if (oldItem.type === "textnode" && oldItem.value !== newItem.value) {
-        if (oldItem.el) {
-          oldItem.el.textContent = newItem.value;
+
+        if (stampName && oldItem.stampName !== stampName) {
+          oldIndex++;
+          continue;
         }
-        oldItem.value = newItem.value;
+
+        if (oldItem.type !== newItem.type) {
+          break;
+        }
+
+        if (oldItem.type === "jst") {
+          // If the tags are the same, then we must descend and compare
+          let doReplace = oldItem.value._compareAndCopy(newItem.value, false);
+          if (doReplace) {
+            break;
+          }
+        }
+        else if (oldItem.type === "textnode" && oldItem.value !== newItem.value) {
+          if (oldItem.el) {
+            oldItem.el.textContent = newItem.value;
+          }
+          oldItem.value = newItem.value;
+        }
+
+        oldIndex++;
+        newIndex++;
       }
-
-      oldIndex++;
-      newIndex++;
     }
-
+    
     // Need to copy stuff - first delete all the old contents
     let oldStartIndex = oldIndex;
     let oldItem       = this.contents[oldIndex];
@@ -465,6 +521,20 @@ class JstElement {
       if (type === "number" || type === "string") {
         this.contents.push({type: "textnode", value: param, stampName: stampName});
       }
+      else if (param instanceof JstObject) {
+        let stampName = `_jst_${param._jstId}`;
+        let stamp     = jst.stamp(stampName, param.render, param);
+        stamp.setContext(param);
+        
+        this.stamps[stampName] = {
+          stamp: stamp,
+          index: this.contents.length
+        };
+        stamp.setParent(this);
+
+        let items = param.render();
+        this._processParams([items], stampName);
+      }
       else if (param instanceof JstElement) {
         this.contents.push({type: "jst", value: param, stampName: stampName});
       }
@@ -486,7 +556,10 @@ class JstElement {
           if (typeof(param[name]) === "undefined") {
             param[name] = "";
           }
-          if (name === "properties" && param.properties instanceof Array) {
+          if (name === "jstOptions" && param.jstOptions instanceof Object) {
+            this.opts = param.jstOptions;
+          }
+          else if (name === "properties" && param.properties instanceof Array) {
             for (let prop of param.properties) {
               this.props.push(prop);
             }
@@ -500,6 +573,10 @@ class JstElement {
                 this.events[event] = param.events[event];
               }
             }
+          }
+          else if (name === "ref") {
+            this.ref       = param[name];
+            this.attrs.ref = param[name];
           }
           else if (name === "cn") {
             // A bit of magic for the "class" attribute: cn -> class
@@ -528,7 +605,8 @@ class JstElement {
 
   // Some helpers
   _quoteAttrValue(value) {
-    return value.replace(/"/, '\"');
+    console.log("value:", value);
+    return value.replace ? value.replace(/"/, '\"') : value;
   }
 
 }
@@ -542,6 +620,7 @@ class JstStamp {
     this.name     = name;
     this.template = template;
     this.params   = params;
+    this.context  = undefined;
     return this;
   }
 
@@ -569,6 +648,14 @@ class JstStamp {
   setParent(parent) {
     this.parent = parent;
   }
+
+  getContext() {
+    return this.context;
+  }
+  setContext(context) {
+    this.context = context;
+  }
+
 }
 
 
@@ -675,7 +762,15 @@ jst.extend({
     if (!stamp) {
       throw new Error("Unknown stamp name: " + stampName);
     }
-    stamp.getParent().update(stampName, params);
+    stamp.getParent().update(stampName, params, false);
+  },
+
+  forceUpdate: function(stampName, ...params) {
+    let stamp = this.stamps[stampName];
+    if (!stamp) {
+      throw new Error("Unknown stamp name: " + stampName);
+    }
+    stamp.getParent().update(stampName, params, true);
   },
 
   deleteStamp: function(stampName) {
