@@ -30,7 +30,9 @@ export class JstObject {
 
   refresh() {
     let stampName = `_jst_${this._jstId}`;
-    jst.update(stampName);
+    if (jst.stamps[stampName]) {
+      jst.update(stampName);
+    }
   }
   
   render() {
@@ -194,8 +196,9 @@ class JstElement {
       }
       else if (item.type === "textnode") {
         if (!item.el) {
-          item.el             = document.createElement("span");
-          item.el.textContent = item.value;
+          // item.el             = document.createElement("span");
+          // item.el.textContent = item.value;
+          item.el = document.createTextNode(item.value);
           if (nextEl) {
             el.insertBefore(item.el, nextEl);
           }
@@ -308,7 +311,7 @@ class JstElement {
 
   update(stampName, params, forceUpdate) {
     let stampInfo = this.stamps[stampName];
-
+ 
     if (!stampInfo) {
       throw new Error("Can't find requested stamp (" + stampName + ") for reStamping");
     }
@@ -340,6 +343,8 @@ class JstElement {
     let oldIndex = 0;
     let newIndex = 0;
 
+    let copyJst = Object.assign({}, newJst);
+    
     // First check the attributes, props and events
     // But only if we aren't the topNode
     if (!topNode) {
@@ -486,6 +491,16 @@ class JstElement {
     if (newJst.contents[newIndex]) {
       // Remove the old stuff and insert the new
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
+      for (let newItem of newItems) {
+        if (newItem.stampName) {
+          jst.stamps[newItem.stampName].setParent(this);
+          this.stamps[newItem.stampName] = {
+            index: newIndex,
+            stamp: jst.stamps[newItem.stampName]
+          };
+          newIndex++;
+        }
+      }
       this.contents.splice(oldStartIndex, 0, ...newItems);
     }
 
@@ -511,7 +526,6 @@ class JstElement {
 
   _processParams(params, stampName) {
     params = jst._flatten.apply(this, params);
-
     if (typeof params === "undefined") {
       params = [];
     }
@@ -521,11 +535,14 @@ class JstElement {
       if (type === "number" || type === "string") {
         this.contents.push({type: "textnode", value: param, stampName: stampName});
       }
+      else if (type === "boolean") {
+        this.contents.push({type: "textnode", value: param.toString(), stampName: stampName});
+      }
       else if (param instanceof JstObject) {
         let stampName = `_jst_${param._jstId}`;
         let stamp     = jst.stamp(stampName, param.render, param);
         stamp.setContext(param);
-        
+
         this.stamps[stampName] = {
           stamp: stamp,
           index: this.contents.length
@@ -556,8 +573,8 @@ class JstElement {
           if (typeof(param[name]) === "undefined") {
             param[name] = "";
           }
-          if (name === "jstOptions" && param.jstOptions instanceof Object) {
-            this.opts = param.jstOptions;
+          if (name === "jstoptions" && param.jstoptions instanceof Object) {
+            this.opts = param.jstoptions;
           }
           else if (name === "properties" && param.properties instanceof Array) {
             for (let prop of param.properties) {
@@ -605,7 +622,6 @@ class JstElement {
 
   // Some helpers
   _quoteAttrValue(value) {
-    console.log("value:", value);
     return value.replace ? value.replace(/"/, '\"') : value;
   }
 
@@ -732,7 +748,7 @@ jst.extend({
     let theRest  = (Array.from(arguments)).slice(2);
 
     let newName = name;
-    if (this.stamps[name]) {
+    if (this.stamps[name] && !name.match(/_jst/)) {
       let i = 0;
       while (true) {
         newName = `${name}-${i}`;
