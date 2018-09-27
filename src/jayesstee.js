@@ -16,6 +16,7 @@ export function jst(selectorOrElement) {
 export default jst;
 
 let globalJstId = 1;
+let globalJstElementId = 1;
 
 // JstObject Class
 //
@@ -23,21 +24,66 @@ let globalJstId = 1;
 // renderable within jayesstee. For a user-defined class to
 // be successfully redered, it must extend this class and
 // implement the render() method
+//
+// It can also be used as a companion object for generic
+// objects. Calling jst.object(someObj) will return one of these
+// objects that is linked to someObj (someObj.$jst is this object and
+// this.companionObj is the passed in object).
 export class JstObject {
-  constructor() {
-    this._jstId = globalJstId++;
+  constructor(companionObj) {
+    this._jstId       = globalJstId++;
+    this.companionObj = companionObj;
+    this.parent       = undefined;
+    this.renderFunc   = undefined;
   }
 
   refresh() {
-    let stampName = `_jst_${this._jstId}`;
-    if (jst.stamps[stampName]) {
-      jst.update(stampName);
+    if (this.parent) {
+      this.parent.update(this);
     }
   }
   
   render() {
-    return "override in descendants";
+    if (!this.renderFunc) {
+      if (this.companionObj) {
+        throw(new Error("You must define a render function with .fill()"));
+      }
+      else {
+        throw(new Error("You must override render() in descendant classes"));
+      }
+    }
+    else {
+      return this.renderFunc(this.companionObj);
+    }
   }
+
+  fill(renderFunc) {
+    if (typeof(renderFunc) !== "function") {
+      throw(new Error(".fill() expects a function to be passed in"));
+    }
+
+    this.renderFunc = renderFunc;
+    
+    return this;
+  }
+
+  setParent(parent) {
+    this.parent = parent;
+  }
+
+  getParent() {
+    return this.parent;
+  }
+
+  setRef(refName, val) {
+    if (this.companionObj) {
+      this.companionObj[refName] = val;
+    }
+    else {
+      this[refName] = val;
+    }
+  }
+  
 }
 
 
@@ -48,12 +94,12 @@ export class JstObject {
 // the DOM (in a browser) or serialized into HTML.
 class JstElement {
   constructor(tag, params) {
+    this.id       = globalJstElementId++;
     this.tag      = tag;
     this.contents = [];
     this.attrs    = {};
     this.props    = [];
     this.events   = {};
-    this.stamps   = {};
     this.opts     = {};
 
     if (tag instanceof HTMLElement) {
@@ -153,15 +199,11 @@ class JstElement {
   }
 
   // Return an HTMLElement
-  dom(lastStampName) {
+  dom(lastJstObject) {
     let el = this.el || document.createElement(this.tag);
 
-    if (this.ref && lastStampName) {
-      let stamp = jst.stamps[lastStampName];
-      if (stamp && stamp.getContext()) {
-        let context = stamp.getContext();
-        context[this.ref] = this;
-      }
+    if (this.ref && lastJstObject) {
+      lastJstObject.setRef(this.ref, this);
     }
 
     if (!this.isDomified) {
@@ -183,7 +225,8 @@ class JstElement {
       let item = this.contents[i];
       if (item.type === "jst") {
         let hasEl   = item.value.el;
-        let childEl = item.value.dom(item.stampName || lastStampName);
+        let childEl = item.value.dom(item.jstObject || lastJstObject);
+        childEl.aId = item.value.aId;
         if (!hasEl) {
           if (nextEl) {
             el.insertBefore(childEl, nextEl);
@@ -196,8 +239,6 @@ class JstElement {
       }
       else if (item.type === "textnode") {
         if (!item.el) {
-          // item.el             = document.createElement("span");
-          // item.el.textContent = item.value;
           item.el = document.createTextNode(item.value);
           if (nextEl) {
             el.insertBefore(item.el, nextEl);
@@ -223,10 +264,6 @@ class JstElement {
       this._deleteItem(item);
     }
 
-    for (let stampName of Object.keys(this.stamps)) {
-      jst.deleteStamp(stampName);
-    }
-
     // Delete this element, if present
     if (this.el) {
       if (this.el.parentNode) {
@@ -240,97 +277,18 @@ class JstElement {
     this.contents = [];
     this.attrs    = {};
     this.props    = [];
-    this.stamps   = {};
   }
 
-  reStamp(stampName, template, params) {
-    // Reinsert the stamp - this requires removing the old one too
-    let stampInfo = this.stamps[stampName];
-
-    if (!stampInfo) {
-      throw new Error("Can't find requested stamp (" + stampName + ") for reStamping");
-    }
-
-    let stamp = stampInfo.stamp;
-
-    // Go through the contents and remove all the ones that are for this stamp
-    let firstIndex = -1;
-    let index      = 0;
-    let count      = 0;
-    for (let item of this.contents) {
-      if (item.stampName && item.stampName === stampName) {
-        if (item.type === "jst") {
-          item.value.delete();
-        }
-        else if (item.type === "textnode") {
-          if (item.el && item.el.parentNode) {
-            // Remove the span element
-            item.el.parentNode.removeChild(item.el);
-          }
-        }
-        else {
-          console.warn("Unexpected content type while deleting:", item.type);
-        }
-        firstIndex = firstIndex < 0 ? firstIndex = index : firstIndex;
-        count++;
-      }
-      index++;
-    }
-
-    this.contents = this.contents.slice(firstIndex, count);
-
-    // Re-add the stamp
-    if (params && params.length > 0) {
-      stamp.setParams(params);
-    }
-
-    if (template) {
-      stamp.setTemplate(template);
-    }
-
-    let trailingContents = this.contents.slice(firstIndex);
-
-    if (firstIndex) {
-      this.contents = this.contents.slice(0, firstIndex);
-    }
-    else {
-      this.contents = [];
-    }
-
-    let items = stamp.getTemplate().apply(this, stamp.getParams());
-    this._processParams([items], stamp.getName());
-
-    // Now re-add the trailing contents
-    this.contents.concat(trailingContents);
-
-    // If we were already domified, then redo it for the new elements
-    if (this.isDomified) {
-      this.dom();
-    }
-  }
-
-  update(stampName, params, forceUpdate) {
-    let stampInfo = this.stamps[stampName];
- 
-    if (!stampInfo) {
-      throw new Error("Can't find requested stamp (" + stampName + ") for reStamping");
-    }
-
-    let stamp = stampInfo.stamp;
-
-    if (params && params.length > 0) {
-      stamp.setParams(params);
-    }
+  update(jstObject, forceUpdate) {
 
     // Create a new JST tree that will be compared against the existing one
-    let context = stamp.getContext() || this;
-    let items   = stamp.getTemplate().apply(context, stamp.getParams());
+    let items   = jstObject.render();
 
-    // newJst will contain the new stamped tree
+    // newJst will contain the new updated tree
     let newJst = new JstElement("div");
-    newJst._processParams([items], stamp.getName());
+    newJst._processParams([items], jstObject);
 
-    this._compareAndCopy(newJst, true, stamp.getName(), forceUpdate);
+    this._compareAndCopy(newJst, true, jstObject, forceUpdate, 0);
 
     // If we were already domified, then redo it for the new elements
     if (this.isDomified) {
@@ -339,11 +297,13 @@ class JstElement {
   }
 
   // Returns true if upper layer needs to copy new Jst. False otherwise
-  _compareAndCopy(newJst, topNode, stampName, forceUpdate) {
+  _compareAndCopy(newJst, topNode, jstObject, forceUpdate, level) {
     let oldIndex = 0;
     let newIndex = 0;
 
     let copyJst = Object.assign({}, newJst);
+
+    // console.log("CAC>" + " ".repeat(level*2), this.tag + this.aId, newJst.tag+newJst.aId);
     
     // First check the attributes, props and events
     // But only if we aren't the topNode
@@ -445,7 +405,7 @@ class JstElement {
           break;
         }
 
-        if (stampName && oldItem.stampName !== stampName) {
+        if (jstObject && oldItem.jstObject._jstId !== jstObject._jstId) {
           oldIndex++;
           continue;
         }
@@ -456,7 +416,7 @@ class JstElement {
 
         if (oldItem.type === "jst") {
           // If the tags are the same, then we must descend and compare
-          let doReplace = oldItem.value._compareAndCopy(newItem.value, false);
+          let doReplace = oldItem.value._compareAndCopy(newItem.value, false, undefined, undefined, level+1);
           if (doReplace) {
             break;
           }
@@ -478,9 +438,10 @@ class JstElement {
     let oldItem       = this.contents[oldIndex];
 
     while (oldItem) {
-      if (stampName && oldItem.stampName !== stampName) {
+      if (jstObject && oldItem.jstObject._jstId !== jstObject._jstId) {
         break;
       }
+      // console.log("      " + " ".repeat(level*2), "deleting old item :", oldItem);
       this._deleteItem(oldItem);
       oldIndex++;
       oldItem = this.contents[oldIndex];
@@ -491,19 +452,16 @@ class JstElement {
     if (newJst.contents[newIndex]) {
       // Remove the old stuff and insert the new
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
+      // console.log("      " + " ".repeat(level*2), "new items being added:", newItems);
       for (let newItem of newItems) {
-        if (newItem.stampName) {
-          jst.stamps[newItem.stampName].setParent(this);
-          this.stamps[newItem.stampName] = {
-            index: newIndex,
-            stamp: jst.stamps[newItem.stampName]
-          };
-          newIndex++;
+        if (newItem.jstObject) {
+          newItem.jstObject.setParent(this);
         }
       }
       this.contents.splice(oldStartIndex, 0, ...newItems);
     }
 
+    // console.log("CAC>" + " ".repeat(level*2), "/" + this.tag+this.aId);
     return false;
     
   }
@@ -524,7 +482,7 @@ class JstElement {
     }
   }
 
-  _processParams(params, stampName) {
+  _processParams(params, jstObject) {
     params = jst._flatten.apply(this, params);
     if (typeof params === "undefined") {
       params = [];
@@ -533,40 +491,24 @@ class JstElement {
       let type = typeof param;
 
       if (type === "number" || type === "string") {
-        this.contents.push({type: "textnode", value: param, stampName: stampName});
+        this.contents.push({type: "textnode", value: param, jstObject: jstObject});
       }
       else if (type === "boolean") {
-        this.contents.push({type: "textnode", value: param.toString(), stampName: stampName});
+        this.contents.push({type: "textnode", value: param.toString(), jstObject: jstObject});
       }
       else if (param instanceof JstObject) {
-        let stampName = `_jst_${param._jstId}`;
-        let stamp     = jst.stamp(stampName, param.render, param);
-        stamp.setContext(param);
-
-        this.stamps[stampName] = {
-          stamp: stamp,
-          index: this.contents.length
-        };
-        stamp.setParent(this);
+        if (!param.getParent()) {
+          param.setParent(this);
+        }
 
         let items = param.render();
-        this._processParams([items], stampName);
+        this._processParams([items], param);
       }
       else if (param instanceof JstElement) {
-        this.contents.push({type: "jst", value: param, stampName: stampName});
-      }
-      else if (param instanceof JstStamp) {
-        let stamp = param;
-        this.stamps[param.getName()] = {
-          stamp: stamp,
-          index: this.contents.length
-        };
-        stamp.setParent(this);
-        let items = stamp.getTemplate().apply(this, stamp.getParams());
-        this._processParams([items], stamp.getName());
+        this.contents.push({type: "jst", value: param, jstObject: jstObject});
       }
       else if (typeof HTMLElement !== 'undefined' && param instanceof HTMLElement) {
-        this.contents.push({type: "jst", value: new JstElement(param), stampName: stampName});
+        this.contents.push({type: "jst", value: new JstElement(param), jstObject: jstObject});
       }
       else if (type === "object") {
         for (let name of Object.keys(param)) {
@@ -627,53 +569,6 @@ class JstElement {
 
 }
 
-// JstStamp Class
-//
-// Container for stamped templates
-//
-class JstStamp {
-  constructor(name, template, params) {
-    this.name     = name;
-    this.template = template;
-    this.params   = params;
-    this.context  = undefined;
-    return this;
-  }
-
-  getName() {
-    return this.name;
-  }
-
-  getTemplate(){
-    return this.template;
-  }
-  setTemplate(template){
-    this.template = template;
-  }
-
-  getParams() {
-    return this.params;
-  }
-  setParams(params) {
-    this.params = params;
-  }
-
-  getParent() {
-    return this.parent;
-  }
-  setParent(parent) {
-    this.parent = parent;
-  }
-
-  getContext() {
-    return this.context;
-  }
-  setContext(context) {
-    this.context = context;
-  }
-
-}
-
 
 jst.fn = jst.prototype = {};
 
@@ -723,7 +618,6 @@ jst.extend({
     'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul', 'var',
     'video', 'wbr'
   ],
-  stamps: {},
 
   addCustomElements: function() {
     let names = jst._flatten.apply(this, arguments);
@@ -737,60 +631,15 @@ jst.extend({
     }
   },
 
-
   init: function() {
     jst.addCustomElements(jst.tags);
   },
 
-  stamp: function() {
-    let name     = arguments[0];
-    let template = arguments[1];
-    let theRest  = (Array.from(arguments)).slice(2);
-
-    let newName = name;
-    if (this.stamps[name] && !name.match(/_jst/)) {
-      let i = 0;
-      while (true) {
-        newName = `${name}-${i}`;
-        if (!this.stamps[newName]) {
-          break;
-        }
-        i++;
-      }
-      console.warn("Naming conflict with stamp. Requested name:", name, " actual:", newName);
+  object: function(obj) {
+    if (typeof(obj) != "object") {
+      throw(new Error("You must pass an object to jst.object()"));
     }
-
-    this.stamps[newName] = new JstStamp(newName, template, theRest);
-
-    return this.stamps[newName];
-  },
-
-  reStamp: function(stampName, template, ...params) {
-    let stamp = this.stamps[stampName];
-    if (!stamp) {
-      throw new Error("Unknown stamp name: " + stampName);
-    }
-    stamp.getParent().reStamp(stampName, template, params);
-  },
-
-  update: function(stampName, ...params) {
-    let stamp = this.stamps[stampName];
-    if (!stamp) {
-      throw new Error("Unknown stamp name: " + stampName);
-    }
-    stamp.getParent().update(stampName, params, false);
-  },
-
-  forceUpdate: function(stampName, ...params) {
-    let stamp = this.stamps[stampName];
-    if (!stamp) {
-      throw new Error("Unknown stamp name: " + stampName);
-    }
-    stamp.getParent().update(stampName, params, true);
-  },
-
-  deleteStamp: function(stampName) {
-    delete this.stamps[stampName];
+    return obj.$jst = new JstObject(obj);
   },
 
   makeGlobal: function(prefix) {
