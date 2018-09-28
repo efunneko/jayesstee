@@ -1,6 +1,6 @@
 // Jayesstee (JST) is a pure javascript HTML templating
 // library, that lets you build HTML (and insert into the DOM)
-// using functional javascript
+// using functional javascript 
 //
 // Copyright 2018 Edward Funnekotter All rights reserved
 
@@ -18,7 +18,7 @@ export function jst(selectorOrElement) {
     }
   }
 }
-
+ 
 export default jst;
 
 // Some global unique identifiers
@@ -42,6 +42,7 @@ export class JstObject {
     this._companionObj = companionObj;
     this._parent       = undefined;
     this._renderFunc   = undefined;
+    this._forms        = {};
   }
 
   // Refresh the instantiation of this object
@@ -80,6 +81,23 @@ export class JstObject {
     return this;
   }
 
+  addForm(jstElement) {
+    let name = jstElement.attrs.name || jstElement.attrs.id || "_unnamed_";
+
+    if (this._forms[name]) {
+      this._forms[name].setJstElement(jstElement);
+    }
+    else {
+      this._forms[name] = new JstForm(jstElement);
+    }
+    return this._forms[name];
+  }
+
+  getFormValues(name) {
+    let form = this._forms[name || "_unnamed_"];
+    return form ? form.getValues() : {};
+  }
+
   // Internal function to set the parent of this object
   setParent(parent) {
     this._parent = parent;
@@ -98,6 +116,37 @@ export class JstObject {
     else {
       this[refName] = val;
     }
+  }
+  
+}
+
+
+// JstForm Class
+//
+// Holds some information about forms
+class JstForm {
+  constructor(jstElement) {
+    this.jstElement = jstElement;
+    this.inputs     = {};
+  }
+
+  addInput(jstElement) {
+    let name = jstElement.attrs.name || jstElement.attrs.id;
+    if (name) {
+      this.inputs[name] = jstElement;
+    }
+  }
+
+  setJstElement(jstElement) {
+    this.jstElement = jstElement;
+  }
+
+  getValues() {
+    let vals = {};
+    for (let name of Object.keys(this.inputs)) {
+      vals[name] = this.inputs[name].el.value;
+    }
+    return vals;
   }
   
 }
@@ -215,11 +264,20 @@ class JstElement {
   }
 
   // Instantiate into the DOM and return the HTMLElement
-  dom(lastJstObject) {
+  dom(lastJstObject, lastJstForm) {
     let el = this.el || document.createElement(this.tag);
 
     if (this.ref && lastJstObject) {
       lastJstObject.setRef(this.ref, this);
+    }
+
+    // Handle forms
+    if (lastJstObject && this.tag === "form" && (this.attrs.name || this.attrs.id)) {
+      lastJstForm = lastJstObject.addForm(this);
+    }
+    else if (lastJstForm &&
+             (this.tag === "input" || this.tag === "textarea")) {
+      lastJstForm.addInput(this);
     }
 
     if (!this.isDomified) {
@@ -241,7 +299,7 @@ class JstElement {
       let item = this.contents[i];
       if (item.type === "jst") {
         let hasEl   = item.value.el;
-        let childEl = item.value.dom(item.jstObject || lastJstObject);
+        let childEl = item.value.dom(item.jstObject || lastJstObject, lastJstForm);
         childEl.aId = item.value.aId;
         if (!hasEl) {
           if (nextEl) {
