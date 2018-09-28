@@ -240,15 +240,33 @@ Add a div with an unordered-list into the body of the page:
         }
     }
     
-    // Now fill the page
+    // Now create a page - this won't yet render it
     let page = new Page({
         headerInfo: {
             title: "My Title",
             userInfo: "my-name"
         },
+        tableConfig: {
+            fieldInfo: {
+                name:   {title: "Name"},
+                height: {title: "Height"},
+                age:    {title: "Age"},
+                weight: {title: "Weight"},
+            },
+            fieldsToShow: ["name", "height", "weight"]
+        },
+        tableData = {
+            collection: [
+                {name: "Bob",     height: 73, age: 31, weight: 180},
+                {name: "Sam",     height: 69, age: 16, weight: 160},
+                {name: "Ruth",    height: 64, age: 55, weight: 150},
+                {name: "Navneet", height: 60, age: 34, weight: 110}
+            ]
+        }
     });
     
-    jst.appendChild();
+    // Now add it to the document
+    jst("body").appendChild(page);
 
 
 _Copyright 2018 Edward Funnekotter All rights reserved_
