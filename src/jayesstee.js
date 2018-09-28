@@ -1,3 +1,9 @@
+// Jayesstee (JST) is a pure javascript HTML templating
+// library, that lets you build HTML (and insert into the DOM)
+// using functional javascript
+//
+// Copyright 2018 Edward Funnekotter All rights reserved
+
 export function jst(selectorOrElement) {
   if (selectorOrElement instanceof HTMLElement) {
     return new JstElement(selectorOrElement);
@@ -15,7 +21,8 @@ export function jst(selectorOrElement) {
 
 export default jst;
 
-let globalJstId = 1;
+// Some global unique identifiers
+let globalJstObjectId  = 1;
 let globalJstElementId = 1;
 
 // JstObject Class
@@ -31,21 +38,25 @@ let globalJstElementId = 1;
 // this.companionObj is the passed in object).
 export class JstObject {
   constructor(companionObj) {
-    this._jstId       = globalJstId++;
-    this.companionObj = companionObj;
-    this.parent       = undefined;
-    this.renderFunc   = undefined;
+    this._jstId        = globalJstObjectId++;
+    this._companionObj = companionObj;
+    this._parent       = undefined;
+    this._renderFunc   = undefined;
   }
 
+  // Refresh the instantiation of this object
+  // Should be called after dependent data is changed
   refresh() {
-    if (this.parent) {
-      this.parent.update(this);
+    if (this._parent) {
+      this._parent.update(this);
     }
   }
-  
+
+  // Called automatically on instantiation or refresh
+  // This must be overrided in classes inheriting from JstObject
   render() {
-    if (!this.renderFunc) {
-      if (this.companionObj) {
+    if (!this._renderFunc) {
+      if (this._companionObj) {
         throw(new Error("You must define a render function with .fill()"));
       }
       else {
@@ -53,31 +64,36 @@ export class JstObject {
       }
     }
     else {
-      return this.renderFunc(this.companionObj);
+      return this._renderFunc(this._companionObj);
     }
   }
 
+  // Used to specify the render behaviour for a generic object that
+  // has been linked through jst.object(<object>)
   fill(renderFunc) {
     if (typeof(renderFunc) !== "function") {
       throw(new Error(".fill() expects a function to be passed in"));
     }
 
-    this.renderFunc = renderFunc;
+    this._renderFunc = renderFunc;
     
     return this;
   }
 
+  // Internal function to set the parent of this object
   setParent(parent) {
-    this.parent = parent;
+    this._parent = parent;
   }
 
+  // Internal function to get the parent
   getParent() {
-    return this.parent;
+    return this._parent;
   }
 
+  // Internal function to record the reference name
   setRef(refName, val) {
-    if (this.companionObj) {
-      this.companionObj[refName] = val;
+    if (this._companionObj) {
+      this._companionObj[refName] = val;
     }
     else {
       this[refName] = val;
@@ -182,7 +198,7 @@ class JstElement {
         }
       }
       else {
-        console.log("Unexpected content type while serializing:", item.type);
+        console.warn("Unexpected content type while serializing:", item.type);
       }
     }
 
@@ -198,7 +214,7 @@ class JstElement {
     return html;
   }
 
-  // Return an HTMLElement
+  // Instantiate into the DOM and return the HTMLElement
   dom(lastJstObject) {
     let el = this.el || document.createElement(this.tag);
 
@@ -258,6 +274,7 @@ class JstElement {
     return el;
   }
 
+  // Delete this element and remove from the DOM if there
   delete() {
     // Remove all items associated with this JstElement
     for (let item of this.contents) {
@@ -279,6 +296,7 @@ class JstElement {
     this.props    = [];
   }
 
+  // Internal function that will update this element and all below it
   update(jstObject, forceUpdate) {
 
     // Create a new JST tree that will be compared against the existing one
@@ -288,6 +306,7 @@ class JstElement {
     let newJst = new JstElement("div");
     newJst._processParams([items], jstObject);
 
+    // Compare with the existing tree to find what needs to change
     this._compareAndCopy(newJst, true, jstObject, forceUpdate, 0);
 
     // If we were already domified, then redo it for the new elements
@@ -296,6 +315,9 @@ class JstElement {
     }
   }
 
+  // Takes a new Jst tree and will do a full comparison to find the differences
+  // which will then be copied into the real tree in preparation for changing
+  // the DOM 
   // Returns true if upper layer needs to copy new Jst. False otherwise
   _compareAndCopy(newJst, topNode, jstObject, forceUpdate, level) {
     let oldIndex = 0;
@@ -482,6 +504,12 @@ class JstElement {
     }
   }
 
+  // This is the meat of all of JST - it is what takes a list of arguments to
+  // a jst element (e.g. jst.$div(...)) and converts it into something that represents
+  // a tree of nodes. The passed in params can be a list of lists (will be flattened),
+  // an object (converted to attributes), strings, numbers, booleans (coverted to textnodes)
+  // or other JST objects. If you understand what is going on here, then you really
+  // understand what JST is all about
   _processParams(params, jstObject) {
     params = jst._flatten.apply(this, params);
     if (typeof params === "undefined") {
@@ -556,7 +584,7 @@ class JstElement {
         // skip
       }
       else {
-        console.log("Unknown JstElement parameter type: ", type);
+        console.warn("Unknown JstElement parameter type: ", type);
       }
     }
   }
@@ -619,6 +647,10 @@ jst.extend({
     'video', 'wbr'
   ],
 
+  // If there are some new elements that you want to insert into the DOM that
+  // aren't in the hardcoded list above, then you can add them with this
+  // (raise a github issue too, so they can be added to the list if they are
+  // generally useful)
   addCustomElements: function() {
     let names = jst._flatten.apply(this, arguments);
 
@@ -631,10 +663,13 @@ jst.extend({
     }
   },
 
+  // Called automatically
   init: function() {
     jst.addCustomElements(jst.tags);
   },
 
+  // Used to associate a generic object with JST so that it can be used
+  // as a refreshable datasource for a template
   object: function(obj) {
     if (typeof(obj) != "object") {
       throw(new Error("You must pass an object to jst.object()"));
@@ -642,6 +677,8 @@ jst.extend({
     return obj.$jst = new JstObject(obj);
   },
 
+  // Put all the element functions (e.g. $div(), $span()) in the global (window)
+  // namespace
   makeGlobal: function(prefix) {
     jst.global          = true;
     jst.globalTagPrefix = prefix || jst.tagPrefix;
