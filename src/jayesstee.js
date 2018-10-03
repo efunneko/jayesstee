@@ -133,7 +133,17 @@ class JstForm {
   addInput(jstElement) {
     let name = jstElement.attrs.name || jstElement.attrs.id;
     if (name) {
-      this.inputs[name] = jstElement;
+      if (this.inputs[name]) {
+        if (Array.isArray(this.inputs[name])) {
+          this.inputs[name].push(jstElement);
+        }
+        else {
+          this.inputs[name] = [this.inputs[name], jstElement];
+        }
+      }
+      else {
+        this.inputs[name] = jstElement;
+      }
     }
   }
 
@@ -144,7 +154,29 @@ class JstForm {
   getValues() {
     let vals = {};
     for (let name of Object.keys(this.inputs)) {
-      vals[name] = this.inputs[name].el.value;
+      if (Array.isArray(this.inputs[name])) {
+        if (this.inputs[name][0].attrs.type && this.inputs[name][0].attrs.type.toLowerCase() === "radio") {
+          for (let input of this.inputs[name]) {
+            if (input.el.checked) {
+              vals[name] = input.attrs.value || input.attrs.id;
+            }
+          }
+        }
+        else if (this.inputs[name][0].attrs.type && this.inputs[name][0].attrs.type.toLowerCase() === "checkbox") {
+          vals[name] = [];
+          for (let input of this.inputs[name]) {
+            if (input.el.checked) {
+              vals[name].push(input.attrs.value || input.attrs.id);
+            }
+          }
+        }
+        else {
+          vals[name] = this.inputs[name][0].el.value;
+        }
+      }
+      else {
+        vals[name] = this.inputs[name].el.value;
+      }
     }
     return vals;
   }
@@ -633,7 +665,7 @@ class JstElement {
               this.attrs['class'] = param[name];
             }
           }
-          else {
+          else if (param[name] !== ""){
             this.attrs[name] = param[name];
           }
         }
