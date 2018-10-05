@@ -22,8 +22,9 @@ export function jst(selectorOrElement) {
 export default jst;
 
 // Some global unique identifiers
-let globalJstObjectId  = 1;
-let globalJstElementId = 1;
+let globalJstObjectId       = 1;
+let globalJstObjectClassId  = 1;
+let globalJstElementId      = 1;
 
 // JstObject Class
 //
@@ -43,6 +44,15 @@ export class JstObject {
     this._parent       = undefined;
     this._renderFunc   = undefined;
     this._forms        = {};
+
+
+    if (!this.constructor.prototype._jstClassId) {
+      this.constructor.prototype._jstClassId = globalJstObjectClassId++;
+    }
+  }
+
+  destroy() {
+    jst.styleManager.removeCss(this);
   }
 
   // Refresh the instantiation of this object
@@ -69,6 +79,27 @@ export class JstObject {
     }
   }
 
+  // Called automatically on instantiation or full refresh
+  renderCss() {
+    let css = {};
+    let someCss = false;
+    for (let type of ['cssGlobal', 'cssLocal', 'cssInstance']) {
+      if (this[type]) {
+        css[type] = jst._normalizeCss(this[type]());
+        someCss = true;
+      }
+    }
+    return someCss ? css : undefined;
+  }
+
+  getClassPrefix() {
+    return `class${this._jstClassId}-`;
+  }
+
+  getFullPrefix() {
+    return `class${this._jstClassId}-i${this._jstId}-`;
+  }
+
   // Used to specify the render behaviour for a generic object that
   // has been linked through jst.object(<object>)
   fill(renderFunc) {
@@ -79,6 +110,14 @@ export class JstObject {
     this._renderFunc = renderFunc;
     
     return this;
+  }
+
+  getName() {
+    return this.constructor.name;
+  }
+
+  getType() {
+    return `${this.getName()}-${this.getFullPrefix()}`;
   }
 
   addForm(jstElement) {
@@ -117,8 +156,204 @@ export class JstObject {
       this[refName] = val;
     }
   }
+
+  // Get file, line and column info
+  _getCodeLocation() {
+    
+  }
+}
+
+
+// JstStyle Class
+//
+// This renders a single style block
+class JstStyle extends JstObject {
+  constructor(classPrefix, className) {
+    super();
+    this.classPrefix = classPrefix;
+    this.className   = className;
+    this.css         = {
+      cssGlobal:   [],
+      cssLocal:    [],
+      cssInstance: {}
+    };
+  }
+
+  updateCss(fullPrefix, css) {
+    let processedCss = this._processCss(fullPrefix, css);
+    this.css.cssGlobal = processedCss.cssGlobal;
+    this.css.cssLocal  = processedCss.cssLocal;
+
+    if (!this.css.cssInstance) {
+      this.css.cssInstance = {};
+    }
+    this.css.cssInstance[fullPrefix] = processedCss.cssInstance;
+    this.refresh();
+  }
+
+  removeCss(fullPrefix) {
+    if (this.css.cssInstance[fullPrefix]) {
+      delete(this.css.cssInstance[fullPrefix]);
+      this.refresh();
+    }
+  }
+
+  render() {
+    return ["cssGlobal", "cssLocal", "cssInstance"].map(
+      type => {
+        if (this.css && this.css[type]) {
+          if (type === "cssInstance") {
+            return Object.values(this.css.cssInstance).map(
+              instance => instance.map(item => jst.$style(item)));
+          }
+          else {
+            return this.css[type].map(item => {
+              return jst.$style(item);
+            });
+          }
+        }
+        return undefined;
+      }
+    );
+  }
+
+  // Override the type to put more useful info
+  getType() {
+    return `${this.getName()}-${this.className}`;
+  }
+
+  // Go through the new CSS and either update existing CSS or
+  // replace what is there, if changed 
+  _processCss(fullPrefix, css) {
+    let processedCss = {};
+    for (let typeInfo of [
+      ["cssGlobal"               ],
+      ["cssLocal",    this.classPrefix],
+      ["cssInstance", fullPrefix ]
+    ]) {
+      let type   = typeInfo[0];
+      let prefix = typeInfo[1];
+
+      processedCss[type] = [];
+      
+      if (css[type]) {
+        for (let block of css[type]) {
+          processedCss[type].push(this._stringify(prefix, block));
+        }
+      }
+    }
+    return processedCss;
+  }
+
+  // Stringify the CSS into blocks suitable for insertion into the DOM
+  _stringify(prefix, block) {
+    let text = "";
+    let mediaQuery;
+    if (block.hasOwnProperty('mediaQuery')) {
+      mediaQuery = block.mediaQuery;
+      delete(block.mediaQuery);
+    }
+    for(let selector of Object.keys(block)) {
+      let rules = block[selector];
+      let scopedSelector = prefix ? selector.replace(/([\.#])/g, `$1${prefix}-`) : selector;
+      if (mediaQuery) {
+        text += `@media ${mediaQuery} {\n`;
+      }
+      text += `${scopedSelector} {\n`;
+      for (let prop of Object.keys(rules)) {
+        let val = rules[prop];
+        let attr = prop.replace(/([A-Z])/g, m => "-"+m.toLowerCase());
+        val = val.join ? val.join(" ") : val;
+        val = val.replace(/\s+/, " ");
+        text += `  ${attr}: ${val};\n`;
+      }
+      text += "}\n";
+      if (mediaQuery) {
+        text += `}\n`;
+      }
+    }
+    return text;
+  }
   
 }
+
+
+// JstStyleManager Class
+//
+// This class defines the singletone that manages the set of style elements
+// that are inserted for application created CSS
+class JstStyleManager extends JstObject {
+  constructor() {
+    super();
+    this.jstStyleLookup = {};
+    this.jstStyles      = [];
+  }
+
+  render() {
+    return this.jstStyles;
+  }
+  
+  updateCss(jstObj, css) {
+    let classId     = jstObj._jstClassId;
+    let objId       = jstObj._jstId;
+    let classPrefix = `class${classId}`;
+    let fullPrefix  = `class${classId}-i${objId}`;
+
+    let jstStyle    = this.jstStyleLookup[classPrefix];
+
+    let madeNew = false;
+    if (!jstStyle) {
+      jstStyle = new JstStyle(classPrefix, jstObj.getName());
+      madeNew = true;
+    }
+
+    jstStyle.updateCss(fullPrefix, css);
+
+    if (madeNew) {
+      this._addStyle(jstStyle, classPrefix);
+    }
+    else {
+      jstStyle.refresh();
+    }
+    
+  }
+
+  removeCss(jstObj) {
+    let classId     = jstObj._jstClassId;
+    let objId       = jstObj._jstId;
+    let classPrefix = `class${classId}`;
+    let fullPrefix  = `class${classId}-i${objId}`;
+
+    let jstStyle    = this.jstStyleLookup[classPrefix];
+
+    if (jstStyle) {
+      jstStyle.removeCss(fullPrefix);
+      this._removeStyle(jstStyle, classPrefix);
+    }
+  }
+
+  _addStyle(jstStyle, classPrefix) {
+    this.jstStyles.push(jstStyle);
+    this.jstStyleLookup[classPrefix] = jstStyle;
+    this.refresh();
+  }
+
+  _removeStyle(jstStyle, classPrefix) {
+    let index = 0;
+    for (let entry of this.jstStyles) {
+      if (jstStyle === entry) {
+        this.jstStyles.splice(index, 1);
+        delete(this.jstStyleLookup[classPrefix]);
+        break;
+      }
+      index++;
+    }
+    this.refresh();
+  }
+
+
+}
+
 
 
 // JstForm Class
@@ -308,13 +543,20 @@ class JstElement {
       lastJstForm = lastJstObject.addForm(this);
     }
     else if (lastJstForm &&
-             (this.tag === "input" || this.tag === "textarea")) {
+             (this.tag === "input" ||
+              this.tag === "textarea" ||
+              this.tag === "select")) {
       lastJstForm.addInput(this);
     }
 
     if (!this.isDomified) {
+      this.jstObject = lastJstObject;
       for (let attrName of Object.keys(this.attrs)) {
-        el.setAttribute(attrName, this.attrs[attrName]);
+        let val = this.attrs[attrName];
+        if (lastJstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
+          val = val.replace(/^(--?)/, m => m === "-" ? lastJstObject.getClassPrefix() : lastJstObject.getFullPrefix());
+        }
+        el.setAttribute(attrName, val);
       }
       for (let propName of this.props) {
         el[propName] = true;
@@ -332,7 +574,6 @@ class JstElement {
       if (item.type === "jst") {
         let hasEl   = item.value.el;
         let childEl = item.value.dom(item.jstObject || lastJstObject, lastJstForm);
-        childEl.aId = item.value.aId;
         if (!hasEl) {
           if (nextEl) {
             el.insertBefore(childEl, nextEl);
@@ -391,10 +632,13 @@ class JstElement {
 
     // Create a new JST tree that will be compared against the existing one
     let items   = jstObject.render();
+    this._processCss(jstObject, jstObject.renderCss());
 
     // newJst will contain the new updated tree
     let newJst = new JstElement("div");
-    newJst._processParams([items], jstObject);
+    let newerJst = new JstElement("jstobject", [{type: jstObject.getType()}]);
+    newJst.contents.push({type: "jst", value: newerJst, jstObject: jstObject});
+    newerJst._processParams([items], jstObject);
 
     // Compare with the existing tree to find what needs to change
     this._compareAndCopy(newJst, true, jstObject, forceUpdate, 0);
@@ -415,7 +659,7 @@ class JstElement {
 
     let copyJst = Object.assign({}, newJst);
 
-    // console.log("CAC>" + " ".repeat(level*2), this.tag + this.aId, newJst.tag+newJst.aId);
+    // console.log("CAC>" + " ".repeat(level*2), this.tag + this.id, newJst.tag+newJst.id);
     
     // First check the attributes, props and events
     // But only if we aren't the topNode
@@ -438,7 +682,14 @@ class JstElement {
         else if (newJst.attrs[attrName] !== this.attrs[attrName]) {
           this.attrs[attrName] = newJst.attrs[attrName];
           if (this.isDomified) {
-            this.el.setAttribute(attrName, newJst.attrs[attrName]);
+            //refactor
+            let val = newJst.attrs[attrName];
+            if (this.lastJstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
+              val = val.replace(/^(--?)/, m => m === "-" ?
+                                this.lastJstObject.getClassPrefix() :
+                                this.lastJstObject.getFullPrefix());
+            }
+            this.el.setAttribute(attrName, val);
           }
         }
       }
@@ -446,7 +697,14 @@ class JstElement {
         if (!this.attrs[attrName]) {
           this.attrs[attrName] = newJst.attrs[attrName];
           if (this.isDomified) {
-            this.el.setAttribute(attrName, newJst.attrs[attrName]);
+            //refactor
+            let val = newJst.attrs[attrName];
+            if (this.lastJstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
+              val = val.replace(/^(--?)/, m => m === "-" ?
+                                this.lastJstObject.getClassPrefix() :
+                                this.lastJstObject.getFullPrefix());
+            }
+            this.el.setAttribute(attrName, val);
           }
         }
       }
@@ -550,10 +808,11 @@ class JstElement {
     let oldItem       = this.contents[oldIndex];
 
     while (oldItem) {
-      if (jstObject && oldItem.jstObject._jstId !== jstObject._jstId) {
+      if (jstObject && (oldItem.jstObject &&
+          oldItem.jstObject._jstId !== jstObject._jstId || !oldItem.jstObject)) {
         break;
       }
-      // console.log("      " + " ".repeat(level*2), "deleting old item :", oldItem);
+      // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
       this._deleteItem(oldItem);
       oldIndex++;
       oldItem = this.contents[oldIndex];
@@ -564,7 +823,7 @@ class JstElement {
     if (newJst.contents[newIndex]) {
       // Remove the old stuff and insert the new
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
-      // console.log("      " + " ".repeat(level*2), "new items being added:", newItems);
+      // console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
       for (let newItem of newItems) {
         if (newItem.jstObject) {
           newItem.jstObject.setParent(this);
@@ -573,7 +832,7 @@ class JstElement {
       this.contents.splice(oldStartIndex, 0, ...newItems);
     }
 
-    // console.log("CAC>" + " ".repeat(level*2), "/" + this.tag+this.aId);
+    // console.log("CAC>" + " ".repeat(level*2), "/" + this.tag+this.id);
     return false;
     
   }
@@ -619,8 +878,14 @@ class JstElement {
           param.setParent(this);
         }
 
+        this._processCss(param, param.renderCss());
+
+        let newJst = new JstElement("jstobject", [{type: param.getType()}]);
+        this.contents.push({type: "jst", value: newJst, jstObject: param});
+
         let items = param.render();
-        this._processParams([items], param);
+        
+        newJst._processParams([items], param);
       }
       else if (param instanceof JstElement) {
         this.contents.push({type: "jst", value: param, jstObject: jstObject});
@@ -676,6 +941,15 @@ class JstElement {
       else {
         console.warn("Unknown JstElement parameter type: ", type);
       }
+    }
+  }
+
+
+  // This will manage any CSS that should be injected on behalf of
+  // the JstObject passed in
+  _processCss(jstObj, css) {
+    if (css) {
+      jst.styleManager.updateCss(jstObj, css);
     }
   }
 
@@ -736,7 +1010,15 @@ jst.extend({
     'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul', 'var',
     'video', 'wbr'
   ],
-
+  cssFuncs: [
+    'attr', 'calc', 'cubic-bezier', 'hsl', 'hsla', 'linear-gradient',
+    'radial-gradient', 'repeating-linear-gradient', 'repeating-radial-gradient',
+    'rgb', 'rgba', 'var', 'translate'
+  ],
+  cssUnits: [
+    'cm', 'mm', 'in', 'px', 'pt', 'pc', 'em', 'ex', 'ch', 'rem', 'vw', 'vh', 'vmin', 'vmax'
+  ],
+  
   // If there are some new elements that you want to insert into the DOM that
   // aren't in the hardcoded list above, then you can add them with this
   // (raise a github issue too, so they can be added to the list if they are
@@ -753,9 +1035,26 @@ jst.extend({
     }
   },
 
-  // Called automatically
-  init: function() {
-    jst.addCustomElements(jst.tags);
+  addCssFunctions: function() {
+    let names = jst._flatten.apply(this, arguments);
+    for (let name of names) {
+      let camelName = name.replace(/-([a-z])/g, match => match[1].toUpperCase());
+      jst[camelName] = function() {
+        let args = jst._flatten.apply(this, arguments);
+        return `${name}(${args.join(",")})`;
+      };
+    }
+  },
+
+  addCssUnits: function() {
+    let names = jst._flatten.apply(this, arguments);
+    for (let name of names) {
+      jst[name] = function() {
+        let args = jst._flatten.apply(this, arguments);
+        let fixed = args.map(arg => `${arg}${name}`);
+        return fixed.join(" ") + " ";
+      };
+    }
   },
 
   // Used to associate a generic object with JST so that it can be used
@@ -781,6 +1080,29 @@ jst.extend({
     }
   },
 
+
+
+  //
+  // Internal functions
+  //
+  // Called automatically
+  _init: function() {
+    jst.addCustomElements(jst.tags);
+    jst.addCssFunctions(jst.cssFuncs);
+    jst.addCssUnits(jst.cssUnits);
+    jst.styleManager = new JstStyleManager();
+    if (window) {
+      jst("head").appendChild(jst.styleManager);
+    }
+  },
+
+  _addCssUnit: function(unit, val) {
+    if (typeof(val) === "number") {
+      return `${val}${unit || ""}`;
+    }
+    return val.toString ? val.toString() : val;
+  },
+
   _flatten: function() {
     var flat = [];
     for (var i = 0; i < arguments.length; i++) {
@@ -801,9 +1123,92 @@ jst.extend({
       }
     }
     return flat;
+  },
+
+  _normalizeCss: function(input) {
+    // First flatten the top level
+    let flat = jst._flatten(input);
+
+    let evenFlatter = [];
+    
+    // We should now have a single array that could have objects or values
+    flat.map(entry => {
+      if (entry instanceof Object) {
+        evenFlatter = evenFlatter.concat(jst._normalizeCssObject(entry));
+      }
+      else {
+        evenFlatter.push(entry);
+      }
+    });
+
+    return evenFlatter;
+  },
+
+  _normalizeCssObject: function(obj) {
+    let fixed = [];
+    let mediaQuery;
+    
+    if (obj.$media) {
+      obj = obj.$media;
+      let query = obj.query;
+      if (query) {
+        if (Array.isArray(query)) {
+          query = query.join(",");
+        }
+        mediaQuery = query.replace(/^\s*.?media\s*/, "");
+        delete(obj.query);
+      }
+    }
+    
+    for (let prop of Object.keys(obj)) {
+      
+      let parts = prop.split("$");
+      let sel   = parts.shift();
+      for (let part of parts) {
+        if (part === "c") {
+          sel = `.${sel}`;
+        }
+        else if (part === "i") {
+          sel = `#${sel}`;
+        }
+        else {
+          sel = `${sel}:${part}`;
+        }
+      }
+
+      let setting = jst._flatten(obj[prop]);
+
+      let fixedSetting = {};
+      setting.map(val => {
+        if (val instanceof Object) {
+          fixedSetting = Object.assign(fixedSetting, jst._normalizeCssStyles(val));
+        }
+      });
+      let tmpObj = {mediaQuery: mediaQuery};
+      tmpObj[sel] = fixedSetting;
+      fixed.push(tmpObj);
+    }
+    return fixed;
+  },
+
+  _normalizeCssStyles: function(obj) {
+    let fixed = {};
+    for (let prop of Object.keys(obj)) {
+      let val   = jst._flatten(obj[prop]);
+      let match = prop.match(/^([^$]+)\$(.+)/);
+      if (match) {
+        val = val.map(item => jst._addCssUnit(match[2], item));
+        fixed[match[1]] = val;
+      }
+      else {
+        fixed[prop] = val;
+      }
+    }
+    return fixed;
   }
+  
 
 });
 
-jst.init();
+jst._init();
 
