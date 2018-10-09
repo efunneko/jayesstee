@@ -266,7 +266,7 @@ Add a div with an unordered-list into the body of the page:
     });
     
     // Now add it to the document
-    jst("body").appendChild(page);
+    jst("body").appendChild(new Page(page));
 
 
 _Copyright 2018 Edward Funnekotter All rights reserved_
