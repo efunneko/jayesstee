@@ -93,11 +93,11 @@ export class JstObject {
   }
 
   getClassPrefix() {
-    return `class${this._jstClassId}-`;
+    return `jsto${this._jstClassId}-`;
   }
 
   getFullPrefix() {
-    return `class${this._jstClassId}-i${this._jstId}-`;
+    return `jsto${this._jstClassId}-i${this._jstId}-`;
   }
 
   // Used to specify the render behaviour for a generic object that
@@ -296,8 +296,8 @@ class JstStyleManager extends JstObject {
   updateCss(jstObj, css) {
     let classId     = jstObj._jstClassId;
     let objId       = jstObj._jstId;
-    let classPrefix = `class${classId}`;
-    let fullPrefix  = `class${classId}-i${objId}`;
+    let classPrefix = `jsto${classId}`;
+    let fullPrefix  = `jsto${classId}-i${objId}`;
 
     let jstStyle    = this.jstStyleLookup[classPrefix];
 
@@ -321,8 +321,8 @@ class JstStyleManager extends JstObject {
   removeCss(jstObj) {
     let classId     = jstObj._jstClassId;
     let objId       = jstObj._jstId;
-    let classPrefix = `class${classId}`;
-    let fullPrefix  = `class${classId}-i${objId}`;
+    let classPrefix = `jsto${classId}`;
+    let fullPrefix  = `jsto${classId}-i${objId}`;
 
     let jstStyle    = this.jstStyleLookup[classPrefix];
 
@@ -569,35 +569,67 @@ class JstElement {
     }
 
     let nextEl;
-    for (let i = this.contents.length-1; i >= 0; i--) {
-      let item = this.contents[i];
-      if (item.type === "jst") {
-        let hasEl   = item.value.el;
-        let childEl = item.value.dom(item.jstObject || lastJstObject, lastJstForm);
-        if (!hasEl) {
-          if (nextEl) {
-            el.insertBefore(childEl, nextEl);
+    let contentsStack = [];
+    let index         = this.contents.length - 1;
+    let contents      = this.contents;
+    let sanity        = 100000000;
+    if (index >= 0) {
+      while (sanity--) {
+        let item = contents[index];
+        if (item.type === "jst") {
+          if (!jst.debug && item.value.tag === "jstobject" &&
+              item.value.contents.length) {
+            // Work on jstobject's items instead
+            if (index) {
+              contentsStack.push([index - 1, contents, lastJstObject]);
+            }
+            contents      = item.value.contents;
+            index         = contents.length - 1;
+            lastJstObject = item.jstObject;
+            continue;
           }
-          else {
-            el.appendChild(childEl);
+          let hasEl   = item.value.el;
+          let childEl = item.value.dom(item.jstObject || lastJstObject, lastJstForm);
+          if (!hasEl) {
+            if (nextEl) {
+              el.insertBefore(childEl, nextEl);
+            }
+            else {
+              el.appendChild(childEl);
+            }
+          }
+          nextEl = childEl;
+        }
+        else if (item.type === "textnode") {
+          if (!item.el) {
+            item.el = document.createTextNode(item.value);
+            if (nextEl) {
+              el.insertBefore(item.el, nextEl);
+            }
+            else {
+              el.appendChild(item.el);
+            }
           }
         }
-        nextEl = childEl;
-      }
-      else if (item.type === "textnode") {
-        if (!item.el) {
-          item.el = document.createTextNode(item.value);
-          if (nextEl) {
-            el.insertBefore(item.el, nextEl);
+        else {
+          console.warn("Unexpected content type while dominating:", item.type);
+        }
+
+        if (!index) {
+          if (contentsStack.length) {
+            let stackItem = contentsStack.pop();
+            index         = stackItem[0];
+            contents      = stackItem[1];
+            lastJstObject = stackItem[2];
           }
           else {
-            el.appendChild(item.el);
+            break;
           }
         }
-      }
-      else {
-        console.warn("Unexpected content type while dominating:", item.type);
-      }
+        else {
+          index--;
+        }
+      }        
     }
 
     this.el         = el;
@@ -640,6 +672,8 @@ class JstElement {
     newJst.contents.push({type: "jst", value: newerJst, jstObject: jstObject});
     newerJst._processParams([items], jstObject);
 
+    let contents = [].concat(newJst.contents);
+
     // Compare with the existing tree to find what needs to change
     this._compareAndCopy(newJst, true, jstObject, forceUpdate, 0);
 
@@ -656,8 +690,6 @@ class JstElement {
   _compareAndCopy(newJst, topNode, jstObject, forceUpdate, level) {
     let oldIndex = 0;
     let newIndex = 0;
-
-    let copyJst = Object.assign({}, newJst);
 
     // console.log("CAC>" + " ".repeat(level*2), this.tag + this.id, newJst.tag+newJst.id);
     
@@ -684,10 +716,10 @@ class JstElement {
           if (this.isDomified) {
             //refactor
             let val = newJst.attrs[attrName];
-            if (this.lastJstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
+            if (this.jstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
               val = val.replace(/^(--?)/, m => m === "-" ?
-                                this.lastJstObject.getClassPrefix() :
-                                this.lastJstObject.getFullPrefix());
+                                this.jstObject.getClassPrefix() :
+                                this.jstObject.getFullPrefix());
             }
             this.el.setAttribute(attrName, val);
           }
@@ -699,10 +731,10 @@ class JstElement {
           if (this.isDomified) {
             //refactor
             let val = newJst.attrs[attrName];
-            if (this.lastJstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
+            if (this.jstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
               val = val.replace(/^(--?)/, m => m === "-" ?
-                                this.lastJstObject.getClassPrefix() :
-                                this.lastJstObject.getFullPrefix());
+                                this.jstObject.getClassPrefix() :
+                                this.jstObject.getFullPrefix());
             }
             this.el.setAttribute(attrName, val);
           }
@@ -809,7 +841,7 @@ class JstElement {
 
     while (oldItem) {
       if (jstObject && (oldItem.jstObject &&
-          oldItem.jstObject._jstId !== jstObject._jstId || !oldItem.jstObject)) {
+                        oldItem.jstObject._jstId !== jstObject._jstId || !oldItem.jstObject)) {
         break;
       }
       // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
@@ -825,7 +857,7 @@ class JstElement {
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
       // console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
       for (let newItem of newItems) {
-        if (newItem.jstObject) {
+        if (newItem.value.tag === "jstobject" && newItem.jstObject) {
           newItem.jstObject.setParent(this);
         }
       }
@@ -994,6 +1026,7 @@ jst.extend = jst.fn.extend = function() {
 
 
 jst.extend({
+  debug: true,
   tagPrefix: "$",
   tags: [
     'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base',
@@ -1080,7 +1113,12 @@ jst.extend({
     }
   },
 
-
+  // Control debug behaviour - with debug on, jayesstee will include
+  // additional elements in the DOM to make it much easier to debug the
+  // heirarchy
+  setDebug: function(val) {
+    jst.debug = val;
+  },
 
   //
   // Internal functions
