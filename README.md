@@ -160,18 +160,22 @@ Add a div with an unordered-list into the body of the page:
     // And refresh it - this will update the DOM, inserting the data into the table
     data.$jst.refresh();
 
-### Finally, the OO way that a bigger application should use
-
+### Finally, the OO way that a bigger application should use (include CSS too)
 
     import jst from 'jayesstee';
     
     jst.makeGlobal();
-     
+    
     class Page extends jst.Object  {
         constructor(appData) {
             super();
             this.header = new Header(appData);
             this.body   = new Body(appData);
+        }
+        cssGlobal() {
+            return {
+              body: {fontFamily: "Arial", padding$px: 0, margin$px: 0}
+            };      
         }
         render() {
             return $div({cn: "page"},
@@ -197,12 +201,19 @@ Add a div with an unordered-list into the body of the page:
             this.headerInfo = appData.headerInfo;
         }
         render() {
-            return $div({cn: "header"},
-                        $div({cn: "title"},
+            return $div({cn: "-header"},
+                        $div({cn: "-title"},
                              this.headerInfo.title),
-                        $div({cn: "user-info"},
+                        $div({cn: "-userInfo"},
                              this.headerInfo.userInfo)
                        );
+        }
+        cssLocal() {
+          return {
+            header$c: {backgroundColor: "black", color: "white", padding$px: 5},
+            title$c: {fontSize: "150%", display: "inline-block"},
+            userInfo$c: {display: "inline-block", float: "right", verticalAlign: "bottom"}
+          }
         }
     }
     
@@ -227,8 +238,15 @@ Add a div with an unordered-list into the body of the page:
             this.config = config;
             this.data   = data;
         }
+        cssLocal() {
+          return {'tableContainer$c': {margin$px: 10}, 
+                  table: {borderCollapse: "collapse"}, 
+                  'td,th': {border$px: [1, "solid", "black"], padding$px: 4},
+                  th: {backgroundColor: "black", color: "white"}
+                 };
+        }
         render() {
-            return $div({cn: "table-container"},
+            return $div({cn: "-tableContainer"},
                         templates.table(this.config.fieldInfo,
                                         this.config.fieldsToShow,
                                         this.data.collection)
