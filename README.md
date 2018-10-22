@@ -149,9 +149,9 @@ Add a div with an unordered-list into the body of the page:
         data => t.table(
           config.fieldInfo, 
           config.fieldsToShow, 
-          data
+          data.collection
         )
-      );
+      ));
 
     // At this point the table has been inserted into the DOM
     // We can now add data to it:
