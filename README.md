@@ -162,9 +162,12 @@ Add a div with an unordered-list into the body of the page:
 
 ### Finally, the OO way that a bigger application should use
 
-    import {jst, JstObject) from "jayesstee";
+
+    import jst from 'jayesstee';
     
-    class Page extends JstObject {
+    jst.makeGlobal();
+     
+    class Page extends jst.Object  {
         constructor(appData) {
             super();
             this.header = new Header(appData);
@@ -176,8 +179,8 @@ Add a div with an unordered-list into the body of the page:
                         this.body);
         }
     }
-
-    class Body extends JstObject {
+    
+    class Body extends jst.Object {
         constructor(appData) {
             super();
             this.table  = new Table(appData.tableConfig, appData.tableData);
@@ -187,8 +190,8 @@ Add a div with an unordered-list into the body of the page:
                         this.table);
         }
     }
-
-    class Header extends JstObject {
+    
+    class Header extends jst.Object {
         constructor(appData) {
             super();
             this.headerInfo = appData.headerInfo;
@@ -198,11 +201,11 @@ Add a div with an unordered-list into the body of the page:
                         $div({cn: "title"},
                              this.headerInfo.title),
                         $div({cn: "user-info"},
-                             this.headerInfo.userInfo
+                             this.headerInfo.userInfo)
                        );
         }
     }
-
+    
     const templates = {
       table: (fieldInfo, fieldsToShow, collection) => 
         $table(
@@ -217,8 +220,8 @@ Add a div with an unordered-list into the body of the page:
           )
         )
     };
-
-    class Table extends JstObject {
+    
+    class Table extends jst.Object {
         constructor(config, data) {
             super();
             this.config = config;
@@ -228,7 +231,8 @@ Add a div with an unordered-list into the body of the page:
             return $div({cn: "table-container"},
                         templates.table(this.config.fieldInfo,
                                         this.config.fieldsToShow,
-                                        this.data.collection);
+                                        this.data.collection)
+                        );
         }
         setConfig(config) {
             this.config = config;
@@ -244,7 +248,7 @@ Add a div with an unordered-list into the body of the page:
     let page = new Page({
         headerInfo: {
             title: "My Title",
-            userInfo: "my-name"
+            userInfo: "my-name" 
         },
         tableConfig: {
             fieldInfo: {
@@ -255,7 +259,7 @@ Add a div with an unordered-list into the body of the page:
             },
             fieldsToShow: ["name", "height", "weight"]
         },
-        tableData = {
+        tableData: {
             collection: [
                 {name: "Bob",     height: 73, age: 31, weight: 180},
                 {name: "Sam",     height: 69, age: 16, weight: 160},
@@ -266,7 +270,10 @@ Add a div with an unordered-list into the body of the page:
     });
     
     // Now add it to the document
-    jst("body").appendChild(new Page(page));
+    jst("body").appendChild(page);
+
+
+[CodePen for previous example](https://codepen.io/efunneko/pen/XxPjej)
 
 
 _Copyright 2018 Edward Funnekotter All rights reserved_
