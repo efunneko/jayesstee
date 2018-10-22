@@ -25,6 +25,7 @@ export default jst;
 let globalJstObjectId       = 1;
 let globalJstObjectClassId  = 1;
 let globalJstElementId      = 1;
+window.globalJstElementMap     = new WeakMap();
 
 // JstObject Class
 //
@@ -39,16 +40,25 @@ let globalJstElementId      = 1;
 // this.companionObj is the passed in object).
 export class JstObject {
   constructor(companionObj) {
-    this._jstId        = globalJstObjectId++;
-    this._companionObj = companionObj;
-    this._parent       = undefined;
-    this._renderFunc   = undefined;
-    this._forms        = {};
-
+    this._jstId           = globalJstObjectId++;
+    this._companionObj    = companionObj;
+    this._renderFunc      = undefined;
+    this._forms           = {};
+    this._wasRendered     = false;
+    this._jstEl           = undefined;
+    this._refCount        = 0;
+    this.updateWithParent = false;
 
     if (!this.constructor.prototype._jstClassId) {
       this.constructor.prototype._jstClassId = globalJstObjectClassId++;
     }
+
+    this._classPrefix     = `jsto${this._jstClassId}-`;
+    this._fullPrefix      = `jsto${this._jstClassId}-i${this._jstId}-`;
+    this._type            = `${this.getName()}-${this.getFullPrefix()}`;
+
+    //console.log("New JstObject: ", this);
+
   }
 
   destroy() {
@@ -57,10 +67,60 @@ export class JstObject {
 
   // Refresh the instantiation of this object
   // Should be called after dependent data is changed
-  refresh() {
-    if (this._parent) {
-      this._parent.update(this);
+  refresh(opts) {
+
+    let isParentUpdate = opts ? opts.isParentUpdate : false;
+    
+    if (!isParentUpdate && !this._jstEl) {
+      return;
     }
+    
+    // Gather all the styles for this object
+    let css     = this.renderCss(opts);
+    if (css) {
+      jst.styleManager.updateCss(this, css);
+    }
+
+    this._refCount++;
+    // console.warn("refresh:", this._type, this._refCount);
+    if (!this._jstEl && isParentUpdate ||
+        (isParentUpdate && this.updateWithParent) ||
+        !isParentUpdate
+       ) {
+    
+      // Create a new JST tree that will be compared against the existing one
+      let items   = this._render();
+
+      // newJst will contain the new updated tree
+      let newJst = new JstElement("jstobject", [{type: this.getType()}]);
+      newJst._processParams([items], true);
+
+      if (this._jstEl){
+        // Compare with the existing tree to find what needs to change
+        this._jstEl._compareAndCopy(newJst, true, this, false, 0);
+        // Need to call unrender to decrement the refcount for the temp
+        // object
+        this._unrender();
+      }
+      else {
+        this._jstEl = newJst;
+      }
+      
+      // If we were already domified, then redo it for the new elements
+      if (this._jstEl.isDomified) {
+        this._jstEl.dom(this);
+      }
+      
+    }
+    
+  }
+
+  // Internally called render function - will call publically
+  // available one 
+  _render() {
+    let items = this.render();
+    this._wasRendered = true;
+    return items;
   }
 
   // Called automatically on instantiation or refresh
@@ -79,25 +139,57 @@ export class JstObject {
     }
   }
 
+  // Called when a parent no longer wants this object's tree in the DOM
+  _unrender() {
+    this._refCount--;
+    // console.warn("unrender:", this._type, this._refCount);
+    if (this._refCount < 0) {
+      throw new Error("Invalid ref count in jstobject", this);
+    }
+    if (this._refCount == 0) {
+      this.unrender();
+      if (this._jstEl) {
+        this._jstEl.delete();
+        delete(this._jstEl);
+      }
+      this.destroy();
+    }
+  }
+
+  // Can be overrided in the sub class 
+  unrender() {
+  }
+
   // Called automatically on instantiation or full refresh
   renderCss() {
     let css = {};
     let someCss = false;
     for (let type of ['cssGlobal', 'cssLocal', 'cssInstance']) {
       if (this[type]) {
-        css[type] = jst._normalizeCss(this[type]());
-        someCss = true;
+        let rawCss = this[type]();
+        if (rawCss) {
+          css[type] = jst._normalizeCss(rawCss);
+          someCss = true;
+        }
       }
     }
     return someCss ? css : undefined;
   }
 
+  getWasRendered() {
+    return this._wasRendered;
+  }
+
   getClassPrefix() {
-    return `jsto${this._jstClassId}-`;
+    return this._classPrefix;
   }
 
   getFullPrefix() {
-    return `jsto${this._jstClassId}-i${this._jstId}-`;
+    return this._fullPrefix;
+  }
+
+  getUpdateWithParent() {
+    return this.updateWithParent;
   }
 
   // Used to specify the render behaviour for a generic object that
@@ -117,7 +209,7 @@ export class JstObject {
   }
 
   getType() {
-    return `${this.getName()}-${this.getFullPrefix()}`;
+    return this._type;
   }
 
   addForm(jstElement) {
@@ -135,16 +227,6 @@ export class JstObject {
   getFormValues(name) {
     let form = this._forms[name || "_unnamed_"];
     return form ? form.getValues() : {};
-  }
-
-  // Internal function to set the parent of this object
-  setParent(parent) {
-    this._parent = parent;
-  }
-
-  // Internal function to get the parent
-  getParent() {
-    return this._parent;
   }
 
   // Internal function to record the reference name
@@ -255,7 +337,7 @@ class JstStyle extends JstObject {
     }
     for(let selector of Object.keys(block)) {
       let rules = block[selector];
-      let scopedSelector = prefix ? selector.replace(/([\.#])/g, `$1${prefix}-`) : selector;
+      let scopedSelector = prefix ? selector.replace(/([\.#])/g, `$1${prefix}`) : selector;
       if (mediaQuery) {
         text += `@media ${mediaQuery} {\n`;
       }
@@ -294,10 +376,8 @@ class JstStyleManager extends JstObject {
   }
   
   updateCss(jstObj, css) {
-    let classId     = jstObj._jstClassId;
-    let objId       = jstObj._jstId;
-    let classPrefix = `jsto${classId}`;
-    let fullPrefix  = `jsto${classId}-i${objId}`;
+    let classPrefix = jstObj.getClassPrefix();
+    let fullPrefix  = jstObj.getFullPrefix();
 
     let jstStyle    = this.jstStyleLookup[classPrefix];
 
@@ -319,10 +399,8 @@ class JstStyleManager extends JstObject {
   }
 
   removeCss(jstObj) {
-    let classId     = jstObj._jstClassId;
-    let objId       = jstObj._jstId;
-    let classPrefix = `jsto${classId}`;
-    let fullPrefix  = `jsto${classId}-i${objId}`;
+    let classPrefix = jstObj.getClassPrefix();
+    let fullPrefix  = jstObj.getFullPrefix();
 
     let jstStyle    = this.jstStyleLookup[classPrefix];
 
@@ -339,6 +417,10 @@ class JstStyleManager extends JstObject {
   }
 
   _removeStyle(jstStyle, classPrefix) {
+    // TODO - need some sort of ref counting of
+    // users of local styles so they can be removed
+    // when last user is gone
+    return;
     let index = 0;
     for (let entry of this.jstStyles) {
       if (jstStyle === entry) {
@@ -350,7 +432,6 @@ class JstStyleManager extends JstObject {
     }
     this.refresh();
   }
-
 
 }
 
@@ -427,7 +508,6 @@ class JstForm {
 class JstElement {
   constructor(tag, params) {
     this.id       = globalJstElementId++;
-    this.tag      = tag;
     this.contents = [];
     this.attrs    = {};
     this.props    = [];
@@ -438,6 +518,9 @@ class JstElement {
       // Wrapping an element with a JstElement
       this.tag = tag.tagName.toLowerCase();
       this.el  = tag;
+    }
+    else {
+      this.tag = tag.toLowerCase();
     }
 
     this._processParams(params);
@@ -501,6 +584,9 @@ class JstElement {
       if (item.type === "jst") {
         html += item.value.html(opts);
       }
+      else if (item.type === "obj" && item.value._jstEl) {
+        html += item.value._jstEl.html(opts);
+      }
       else if (item.type === "HTMLElement") {
         html += item.value.innerHTML;
       }
@@ -532,6 +618,7 @@ class JstElement {
 
   // Instantiate into the DOM and return the HTMLElement
   dom(lastJstObject, lastJstForm) {
+    //console.warn("Domming:", this.tag, lastJstObject);
     let el = this.el || document.createElement(this.tag);
 
     if (this.ref && lastJstObject) {
@@ -550,11 +637,14 @@ class JstElement {
     }
 
     if (!this.isDomified) {
+      
+      // TODO - shouldn't need this - and creates a circular reference that won't auto free...
       this.jstObject = lastJstObject;
+      
       for (let attrName of Object.keys(this.attrs)) {
         let val = this.attrs[attrName];
-        if (lastJstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
-          val = val.replace(/^(--?)/, m => m === "-" ? lastJstObject.getClassPrefix() : lastJstObject.getFullPrefix());
+        if (lastJstObject && (attrName === "class" || attrName === "id") && val.match && val.match(/^-/)) {
+          val = val.replace(/(^|\s)(--?)/g, (m, p1, p2) => p1 + (p2 === "-" ? lastJstObject.getClassPrefix() : lastJstObject.getFullPrefix()));
         }
         el.setAttribute(attrName, val);
       }
@@ -576,20 +666,26 @@ class JstElement {
     if (index >= 0) {
       while (sanity--) {
         let item = contents[index];
-        if (item.type === "jst") {
-          if (!jst.debug && item.value.tag === "jstobject" &&
-              item.value.contents.length) {
+        if (item.type === "jst" || item.type === "obj") {
+          if (0 && !jst.debug && item.type && item.value._jstEl &&
+              item.value._jstEl.contents.length) {
             // Work on jstobject's items instead
             if (index) {
               contentsStack.push([index - 1, contents, lastJstObject]);
             }
-            contents      = item.value.contents;
+            contents      = item.value._jstEl.contents;
             index         = contents.length - 1;
-            lastJstObject = item.jstObject;
+            lastJstObject = item.value;            
             continue;
           }
-          let hasEl   = item.value.el;
-          let childEl = item.value.dom(item.jstObject || lastJstObject, lastJstForm);
+          else if (item.type === "obj") {
+            lastJstObject = item.value;
+            if (item.value._jstEl) {
+              item = {value: item.value._jstEl, type: "jst"};
+            }
+          } 
+          let hasEl   = item.value.el; 
+          let childEl = item.value.dom(lastJstObject, lastJstForm);
           if (!hasEl) {
             if (nextEl) {
               el.insertBefore(childEl, nextEl);
@@ -659,30 +755,6 @@ class JstElement {
     this.props    = [];
   }
 
-  // Internal function that will update this element and all below it
-  update(jstObject, forceUpdate) {
-
-    // Create a new JST tree that will be compared against the existing one
-    let items   = jstObject.render();
-    this._processCss(jstObject, jstObject.renderCss());
-
-    // newJst will contain the new updated tree
-    let newJst = new JstElement("div");
-    let newerJst = new JstElement("jstobject", [{type: jstObject.getType()}]);
-    newJst.contents.push({type: "jst", value: newerJst, jstObject: jstObject});
-    newerJst._processParams([items], jstObject);
-
-    let contents = [].concat(newJst.contents);
-
-    // Compare with the existing tree to find what needs to change
-    this._compareAndCopy(newJst, true, jstObject, forceUpdate, 0);
-
-    // If we were already domified, then redo it for the new elements
-    if (this.isDomified) {
-      this.dom();
-    }
-  }
-
   // Takes a new Jst tree and will do a full comparison to find the differences
   // which will then be copied into the real tree in preparation for changing
   // the DOM 
@@ -717,9 +789,9 @@ class JstElement {
             //refactor
             let val = newJst.attrs[attrName];
             if (this.jstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
-              val = val.replace(/^(--?)/, m => m === "-" ?
-                                this.jstObject.getClassPrefix() :
-                                this.jstObject.getFullPrefix());
+              val = val.replace(/(^|\s)(--?)/g, (m, p1, p2) => p1 + (p2 === "-" ?
+                                                                     this.jstObject.getClassPrefix() :
+                                                                     this.jstObject.getFullPrefix()));
             }
             this.el.setAttribute(attrName, val);
           }
@@ -732,9 +804,9 @@ class JstElement {
             //refactor
             let val = newJst.attrs[attrName];
             if (this.jstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
-              val = val.replace(/^(--?)/, m => m === "-" ?
-                                this.jstObject.getClassPrefix() :
-                                this.jstObject.getFullPrefix());
+              val = val.replace(/(^|\s)(--?)/g, (m, p1, p2) => p1 + (p2 === "-" ?
+                                                                     this.jstObject.getClassPrefix() :
+                                                                     this.jstObject.getFullPrefix()));
             }
             this.el.setAttribute(attrName, val);
           }
@@ -807,11 +879,6 @@ class JstElement {
           break;
         }
 
-        if (jstObject && oldItem.jstObject._jstId !== jstObject._jstId) {
-          oldIndex++;
-          continue;
-        }
-
         if (oldItem.type !== newItem.type) {
           break;
         }
@@ -823,6 +890,14 @@ class JstElement {
             break;
           }
         }
+        else if (oldItem.type === "obj") {
+          // If the tags are the same, then we must descend and compare
+          if (oldItem.value._jstId != newItem.value._jstId) {
+            // Different JstObjects
+            break;
+          }
+          // Don't bother descending into JstObjects - they take care of themselves
+        }
         else if (oldItem.type === "textnode" && oldItem.value !== newItem.value) {
           if (oldItem.el) {
             oldItem.el.textContent = newItem.value;
@@ -832,20 +907,22 @@ class JstElement {
 
         oldIndex++;
         newIndex++;
+        
+        if (newItem.type === "obj") {
+          // Unhook this reference
+          newItem.value._unrender();
+        }
       }
     }
     
     // Need to copy stuff - first delete all the old contents
     let oldStartIndex = oldIndex;
     let oldItem       = this.contents[oldIndex];
+    let itemsToDelete = [];
 
     while (oldItem) {
-      if (jstObject && (oldItem.jstObject &&
-                        oldItem.jstObject._jstId !== jstObject._jstId || !oldItem.jstObject)) {
-        break;
-      }
       // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
-      this._deleteItem(oldItem);
+      itemsToDelete.push(oldItem);
       oldIndex++;
       oldItem = this.contents[oldIndex];
     }
@@ -856,12 +933,11 @@ class JstElement {
       // Remove the old stuff and insert the new
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
       // console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
-      for (let newItem of newItems) {
-        if (newItem.value.tag === "jstobject" && newItem.jstObject) {
-          newItem.jstObject.setParent(this);
-        }
-      }
       this.contents.splice(oldStartIndex, 0, ...newItems);
+    }
+
+    for (let itemToDelete of itemsToDelete) {
+      this._deleteItem(itemToDelete);
     }
 
     // console.log("CAC>" + " ".repeat(level*2), "/" + this.tag+this.id);
@@ -872,6 +948,10 @@ class JstElement {
   _deleteItem(contentsItem) {
     if (contentsItem.type === "jst") {
       contentsItem.value.delete();
+    }
+    else if (contentsItem.type === "obj") {
+      // TODO - more to do here
+      contentsItem.value._unrender();
     }
     else if (contentsItem.type === "textnode") {
       if (contentsItem.el && contentsItem.el.parentNode) {
@@ -891,39 +971,35 @@ class JstElement {
   // an object (converted to attributes), strings, numbers, booleans (coverted to textnodes)
   // or other JST objects. If you understand what is going on here, then you really
   // understand what JST is all about
-  _processParams(params, jstObject) {
+  _processParams(params, isUpdate) {
     params = jst._flatten.apply(this, params);
     if (typeof params === "undefined") {
       params = [];
     }
+
     for (let param of params) {
       let type = typeof param;
 
       if (type === "number" || type === "string") {
-        this.contents.push({type: "textnode", value: param, jstObject: jstObject});
+        this.contents.push({type: "textnode", value: param});
       }
       else if (type === "boolean") {
-        this.contents.push({type: "textnode", value: param.toString(), jstObject: jstObject});
+        this.contents.push({type: "textnode", value: param.toString()});
       }
       else if (param instanceof JstObject) {
-        if (!param.getParent()) {
-          param.setParent(this);
-        }
 
-        this._processCss(param, param.renderCss());
+        // Put the JstObject into this element's contents
+        this.contents.push({type: "obj", value: param});
 
-        let newJst = new JstElement("jstobject", [{type: param.getType()}]);
-        this.contents.push({type: "jst", value: newJst, jstObject: param});
-
-        let items = param.render();
+        // Let the JstObject render itself
+        param.refresh({isParentUpdate: true});
         
-        newJst._processParams([items], param);
       }
       else if (param instanceof JstElement) {
-        this.contents.push({type: "jst", value: param, jstObject: jstObject});
+        this.contents.push({type: "jst", value: param});
       }
       else if (typeof HTMLElement !== 'undefined' && param instanceof HTMLElement) {
-        this.contents.push({type: "jst", value: new JstElement(param), jstObject: jstObject});
+        this.contents.push({type: "jst", value: new JstElement(param)});
       }
       else if (type === "object") {
         for (let name of Object.keys(param)) {
@@ -969,6 +1045,9 @@ class JstElement {
       }
       else if (type === "undefined") {
         // skip
+      }
+      else if (param.toString) {
+        this.contents.push({type: "textnode", value: param.toString()});
       }
       else {
         console.warn("Unknown JstElement parameter type: ", type);
@@ -1026,8 +1105,11 @@ jst.extend = jst.fn.extend = function() {
 
 
 jst.extend({
-  debug: true,
+  debug:     true,
   tagPrefix: "$",
+  Object:    JstObject,
+  Form:      JstForm,
+  Element:   JstElement,
   tags: [
     'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base',
     'bdi', 'bdo', 'blockquote', 'body', 'br', 'button', 'canvas', 'caption',
@@ -1046,10 +1128,14 @@ jst.extend({
   cssFuncs: [
     'attr', 'calc', 'cubic-bezier', 'hsl', 'hsla', 'linear-gradient',
     'radial-gradient', 'repeating-linear-gradient', 'repeating-radial-gradient',
-    'rgb', 'rgba', 'var', 'translate'
+    'rgb', 'rgba', 'var', 'translate', 'matrix', 'matrix3d', 'translate', 'translate3d',
+    'translateX', 'translateY', 'translateZ', 'scale', 'scale3d', 'scaleX', 'scaleY',
+    'scaleZ', 'rotate', 'rotate3d', 'rotateX', 'rotateY', 'rotateZ', 'skew', 'skewX',
+    'skewY', 'perspective'
   ],
   cssUnits: [
-    'cm', 'mm', 'in', 'px', 'pt', 'pc', 'em', 'ex', 'ch', 'rem', 'vw', 'vh', 'vmin', 'vmax'
+    'cm', 'mm', 'in', 'px', 'pt', 'pc', 'em', 'ex', 'ch', 'rem', 'vw', 'vh',
+    'vmin', 'vmax', 'deg', 'rad'
   ],
   
   // If there are some new elements that you want to insert into the DOM that
@@ -1138,7 +1224,7 @@ jst.extend({
     if (typeof(val) === "number") {
       return `${val}${unit || ""}`;
     }
-    return val.toString ? val.toString() : val;
+    return val && val.toString ? val.toString() : val;
   },
 
   _flatten: function() {

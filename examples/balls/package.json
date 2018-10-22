@@ -1,0 +1,28 @@
+{
+  "name": "jayesstee-balls",
+  "version": "1.0.0",
+  "description": "A simple bouncing ball app",
+  "main": "index.js",
+  "scripts": {
+    "watch": "./node_modules/.bin/webpack-dev-server --mode=development --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "jayesstee",
+    "todo"
+  ],
+  "author": "Edward Funnekotter",
+  "license": "ISC",
+  "devDependencies": {
+    "css-loader": "^1.0.0",
+    "file-loader": "^2.0.0",
+    "html-webpack-plugin": "^3.2.0",
+    "sass-loader": "^7.1.0",
+    "webpack": "^4.20.2",
+    "webpack-cli": "^3.1.2",
+    "webpack-dev-server": "^3.1.9"
+  },
+  "dependencies": {
+    "jayesstee": "^0.7.1"
+  }
+}
