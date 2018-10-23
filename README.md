@@ -8,7 +8,8 @@ debugger.
 
 The module can both create simple HTML output in string form (useful for 
 spitting out some HTML in node.js) or can be used in the browser and fill in the
-DOM with HTMLElements, etc.
+DOM with HTMLElements, etc. It can also manage CSS with local scoping. Finally it adds
+some basic support for events and input data retrieval.
 
 ## Examples
 
