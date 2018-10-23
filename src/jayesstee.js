@@ -618,7 +618,7 @@ class JstElement {
 
   // Instantiate into the DOM and return the HTMLElement
   dom(lastJstObject, lastJstForm) {
-    //console.warn("Domming:", this.tag, lastJstObject);
+    // console.warn("Domming:", this.tag, this.attrs.class, lastJstObject);
     let el = this.el || document.createElement(this.tag);
 
     if (this.ref && lastJstObject) {
@@ -643,7 +643,7 @@ class JstElement {
       
       for (let attrName of Object.keys(this.attrs)) {
         let val = this.attrs[attrName];
-        if (lastJstObject && (attrName === "class" || attrName === "id") && val.match && val.match(/^-/)) {
+        if (lastJstObject && (attrName === "class" || attrName === "id") && val.match && val.match(/(^|\s)-/)) {
           val = val.replace(/(^|\s)(--?)/g, (m, p1, p2) => p1 + (p2 === "-" ? lastJstObject.getClassPrefix() : lastJstObject.getFullPrefix()));
         }
         el.setAttribute(attrName, val);
@@ -788,7 +788,7 @@ class JstElement {
           if (this.isDomified) {
             //refactor
             let val = newJst.attrs[attrName];
-            if (this.jstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
+            if (this.jstObject && (attrName === "class" || attrName === "id") && val.match(/(^|\s)-/)) {
               val = val.replace(/(^|\s)(--?)/g, (m, p1, p2) => p1 + (p2 === "-" ?
                                                                      this.jstObject.getClassPrefix() :
                                                                      this.jstObject.getFullPrefix()));
@@ -803,7 +803,7 @@ class JstElement {
           if (this.isDomified) {
             //refactor
             let val = newJst.attrs[attrName];
-            if (this.jstObject && (attrName === "class" || attrName === "id") && val.match(/^-/)) {
+            if (this.jstObject && (attrName === "class" || attrName === "id") && val.match(/(^|\s)-/)) {
               val = val.replace(/(^|\s)(--?)/g, (m, p1, p2) => p1 + (p2 === "-" ?
                                                                      this.jstObject.getClassPrefix() :
                                                                      this.jstObject.getFullPrefix()));
