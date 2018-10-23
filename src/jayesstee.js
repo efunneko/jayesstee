@@ -25,7 +25,6 @@ export default jst;
 let globalJstObjectId       = 1;
 let globalJstObjectClassId  = 1;
 let globalJstElementId      = 1;
-window.globalJstElementMap     = new WeakMap();
 
 // JstObject Class
 //
@@ -1215,8 +1214,11 @@ jst.extend({
     jst.addCssFunctions(jst.cssFuncs);
     jst.addCssUnits(jst.cssUnits);
     jst.styleManager = new JstStyleManager();
-    if (window) {
+    if (typeof window !== 'undefined') {
       jst("head").appendChild(jst.styleManager);
+    }
+    else {
+      global.HTMLElement = class HTMLElement {};
     }
   },
 

@@ -18,6 +18,25 @@ In the browser:
 
 In node to generate HTML:
 
-    TBD
+    let {jst}    = require('jayesstee');
+    
+    let div = jst.$html(
+      jst.$head(),
+      jst.$body(
+        jst.$div(
+          {cn: "page"},
+          jst.$h1("Hello, world!")
+        )
+      )
+    );
+    
+    console.log(div.html());
+
+which will output
+
+    <html><head></head><body><div class="page"><h1>Hello, world!</h1></div></body></html>
+    
+
+
     
     
