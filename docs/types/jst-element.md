@@ -7,6 +7,6 @@ an actual instantiated element within the DOM.
 
 ## Creation
 
-JstElement objects are created by calling the appropriate jst.$<element> function,
+JstElement objects are created by calling the appropriate jst.$\<element\> function,
 for example `jst.$div()` would be called to create a JstElement that represented 
 a `<div></div>` element.
