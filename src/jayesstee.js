@@ -637,7 +637,6 @@ class JstElement {
 
     if (!this.isDomified) {
       
-      // TODO - shouldn't need this - and creates a circular reference that won't auto free...
       this.jstObject = lastJstObject;
       
       for (let attrName of Object.keys(this.attrs)) {
@@ -738,6 +737,9 @@ class JstElement {
     for (let item of this.contents) {
       this._deleteItem(item);
     }
+
+    // Remove any reference to the JstObject (circular reference)
+    delete this.jstObject;
 
     // Delete this element, if present
     if (this.el) {
@@ -949,7 +951,6 @@ class JstElement {
       contentsItem.value.delete();
     }
     else if (contentsItem.type === "obj") {
-      // TODO - more to do here
       contentsItem.value._unrender();
     }
     else if (contentsItem.type === "textnode") {
