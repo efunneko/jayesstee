@@ -17,7 +17,7 @@ can be accessed via `jst.Object`. For example:
 
 All user defined jayesstee object classes must implement at least the `render()`
 method. This method takes no parameters and must return something that is suitable
-for inserting into a [JstElement's](jst-element.md) creation function ([see jst.$<element> for details](jst-element.md#creation)).
+for inserting into a [JstElement's](jst-element.md) creation function - [see jst.$\<element\> for details](jst-element.md#creation).
 Typically this is a JstElement, but it could be a list of JstElements or even just a string.
 
 Ex. Render an unordered list of items stored in this.items:
