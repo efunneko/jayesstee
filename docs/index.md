@@ -28,7 +28,7 @@ Jayesstee can be used in two distinct ways:
 
 * Object Oriented
 
-  More integrated with the data used to generate the HTML and CSS
+  Integrates closely with data models to allow for dynamic rendering
 
 
 #### Functional Method
