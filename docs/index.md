@@ -1,7 +1,7 @@
 # Jayesstee - Javascript Templating (JST)
 
-[Getting Started](getting-started.md)
-[User Guide](documentation.md)
+[Getting Started](getting-started.md)  
+[User Guide](documentation.md)  
 [API](api.md)
 
 
