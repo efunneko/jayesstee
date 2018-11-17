@@ -56,8 +56,6 @@ export class JstObject {
     this._fullPrefix      = `jsto${this._jstClassId}-i${this._jstId}-`;
     this._type            = `${this.getName()}-${this.getFullPrefix()}`;
 
-    //console.log("New JstObject: ", this);
-
   }
 
   destroy() {
@@ -330,29 +328,74 @@ class JstStyle extends JstObject {
   _stringify(prefix, block) {
     let text = "";
     let mediaQuery;
-    if (block.hasOwnProperty('mediaQuery')) {
-      mediaQuery = block.mediaQuery;
-      delete(block.mediaQuery);
+    let keyFrames;
+    if (block.hasOwnProperty(':keyframes')) {
+      let name = block[":keyframes"].name;
+      if (name) {
+        keyFrames = name;
+        //let prop = `@keyframes ${name}`;
+        delete(block[":keyframes"].name);
+        //block[prop] = block[":keyframes"];
+        //delete(block[":keyframes"]);
+      }
+      else {
+        console.warn("$keyframe specified, but 'name' property is missing", block);
+      }
+    }
+    if (block.hasOwnProperty(':media')) {
+      let query = block[":media"].query;
+      if (query) {
+        mediaQuery = query;
+        //let prop = `@media ${query}`;
+        delete(block[":media"].query);
+        //block[prop] = block[":media"];
+        //delete(block[":media"]);
+      }
+      else {
+        console.warn("$media specified, but 'query' property is missing");
+      }
     }
     for(let selector of Object.keys(block)) {
       let rules = block[selector];
       let scopedSelector = prefix ? selector.replace(/([\.#])/g, `$1${prefix}`) : selector;
       if (mediaQuery) {
         text += `@media ${mediaQuery} {\n`;
-      }
-      text += `${scopedSelector} {\n`;
-      for (let prop of Object.keys(rules)) {
-        let val = rules[prop];
-        let attr = prop.replace(/([A-Z])/g, m => "-"+m.toLowerCase());
-        val = val.join ? val.join(" ") : val;
-        val = val.replace(/\s+/, " ");
-        text += `  ${attr}: ${val};\n`;
-      }
-      text += "}\n";
-      if (mediaQuery) {
+        text += this._stringify(prefix, rules);
         text += `}\n`;
       }
+      else if (keyFrames) {
+        text += `@keyframes ${keyFrames} {\n`;
+        text += this._stringify(prefix, rules);
+        text += `}\n`;
+      }
+      else {
+        text += `${scopedSelector} `;
+        text += this._stringifyObj(rules, "");
+      }
     }
+    return text;
+  }
+
+  _stringifyObj(obj, indent) {
+    if (!(obj instanceof Object)) {
+      return obj.toString();
+    }
+    let text = "{\n";
+    for (let prop of Object.keys(obj)) {
+      let val = obj[prop];
+      let attr = prop.replace(/([A-Z])/g, m => "-"+m.toLowerCase());
+      val = val.reduce ? val.reduce((acc, item) =>
+                                    acc + " " + this._stringifyObj(item, indent + "  "), "") :
+       val.toString();
+      val = val.replace(/\s+/, " ");
+      if (val.substr(-2,1) !== "}") {
+      text += `${indent}  ${attr}: ${val};\n`;
+      }
+      else {
+        text += `${indent}  ${attr} ${val}`;
+      }
+    }
+    text += `${indent}}\n`;
     return text;
   }
   
@@ -848,10 +891,10 @@ class JstElement {
       // Fix all the events
       for (let eventName of Object.keys(this.events)) {
         if (!newJst.events[eventName]) {
-          delete this.events[eventName];
           if (this.isDomified) {
             this.el.removeEventListener(eventName, this.events[eventName].listener);
           }
+          delete this.events[eventName];
         }
         else if (newJst.events[eventName].listener !== this.events[eventName].listener) {
           if (this.isDomified) {
@@ -1135,7 +1178,7 @@ jst.extend({
   ],
   cssUnits: [
     'cm', 'mm', 'in', 'px', 'pt', 'pc', 'em', 'ex', 'ch', 'rem', 'vw', 'vh',
-    'vmin', 'vmax', 'deg', 'rad'
+    'vmin', 'vmax', 'deg', 'rad', 's'
   ],
   
   // If there are some new elements that you want to insert into the DOM that
@@ -1255,7 +1298,6 @@ jst.extend({
   _normalizeCss: function(input) {
     // First flatten the top level
     let flat = jst._flatten(input);
-
     let evenFlatter = [];
     
     // We should now have a single array that could have objects or values
@@ -1272,23 +1314,11 @@ jst.extend({
   },
 
   _normalizeCssObject: function(obj) {
+    const isContainer = new Set(["$media", "$keyframes"]);
     let fixed = [];
-    let mediaQuery;
-    
-    if (obj.$media) {
-      obj = obj.$media;
-      let query = obj.query;
-      if (query) {
-        if (Array.isArray(query)) {
-          query = query.join(",");
-        }
-        mediaQuery = query.replace(/^\s*.?media\s*/, "");
-        delete(obj.query);
-      }
-    }
     
     for (let prop of Object.keys(obj)) {
-      
+
       let parts = prop.split("$");
       let sel   = parts.shift();
       for (let part of parts) {
@@ -1303,15 +1333,27 @@ jst.extend({
         }
       }
 
-      let setting = jst._flatten(obj[prop]);
 
       let fixedSetting = {};
-      setting.map(val => {
-        if (val instanceof Object) {
-          fixedSetting = Object.assign(fixedSetting, jst._normalizeCssStyles(val));
-        }
-      });
-      let tmpObj = {mediaQuery: mediaQuery};
+      if (isContainer.has(prop)) {
+        let processed = this._normalizeCssObject(obj[prop]);
+        processed.map(item => fixedSetting = Object.assign(fixedSetting, item));
+      }
+      else {
+        
+        let setting = jst._flatten(obj[prop]);
+        setting.map(val => {
+          if (val instanceof Object) {
+            fixedSetting = Object.assign(fixedSetting, jst._normalizeCssStyles(val));
+          }
+          else {
+            fixedSetting = val;
+          }
+        });
+
+      }
+      
+      let tmpObj = {};
       tmpObj[sel] = fixedSetting;
       fixed.push(tmpObj);
     }
@@ -1321,14 +1363,20 @@ jst.extend({
   _normalizeCssStyles: function(obj) {
     let fixed = {};
     for (let prop of Object.keys(obj)) {
-      let val   = jst._flatten(obj[prop]);
-      let match = prop.match(/^([^$]+)\$(.+)/);
-      if (match) {
-        val = val.map(item => jst._addCssUnit(match[2], item));
-        fixed[match[1]] = val;
+      if (obj[prop] instanceof Object && !Array.isArray(obj[prop])) {
+        let fixedObj = this._normalizeCssStyles(obj[prop]); 
+        fixed[prop] = [fixedObj];
       }
       else {
-        fixed[prop] = val;
+        let val   = jst._flatten(obj[prop]);
+        let match = prop.match(/^([^$]+)\$(.+)/);
+        if (match) {
+          val = val.map(item => jst._addCssUnit(match[2], item));
+          fixed[match[1]] = val;
+        }
+        else {
+          fixed[prop] = val;
+        }
       }
     }
     return fixed;

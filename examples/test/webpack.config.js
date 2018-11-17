@@ -15,6 +15,7 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       title: 'Test',
+      template: './src/index.html',
       files: {
         js: ['/dist/bundle.js']
       }
