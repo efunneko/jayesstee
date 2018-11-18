@@ -36,10 +36,7 @@ Jayesstee can be used in two distinct ways:
 When using jayesstee in a functional manner, there is very little code to
 be written and zero boiler plate. Simply create [JstElements](types/jst-element.md)
 with the content you need and then stick them in the DOM. This is the easiest way
-to interoperate with other frameworks or libraries. For example to stick a button
-on a page with jQuery:
-    
-    jst($("#button-container")[0]).appendChild(jst.$button({id: 'my-button'}, "Push Me"));
+to interoperate with other frameworks or libraries. 
   
 For bigger projects that have a lot of dynamically rendered pages or components, 
 the Object Oriented method is superior. 
@@ -66,5 +63,9 @@ can contain `cssGlobal`, `cssLocal` and `cssInstance` methods to define CSS rule
 for three levels of scoping.
 
 Typically, the rendering of the HTML and CSS is only dependent on data within the
-object created from this class. When the data changes, `this.refresh()` is called
+object created from this class. When the data changes, `this.refresh()` must be called
 to update the DOM. 
+
+A simple example of of the OO method is available in [this codepen](https://codepen.io/efunneko/pen/pxxwBQ).
+
+
