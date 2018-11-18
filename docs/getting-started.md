@@ -10,15 +10,18 @@
 
 In the browser:
 
+```javascript
     import jst from 'jayesstee';
     
     jst("body").appendChild(jst.$div("Hello, world!"));
+```
 
 which will add <div>Hello, world!</div> as a child in the body element.
 
 
 In node to generate HTML:
 
+```javascript
     let {jst}    = require('jayesstee');
     
     let div = jst.$html(
@@ -32,6 +35,7 @@ In node to generate HTML:
     );
     
     console.log(div.html());
+```
 
 which will output
 
@@ -40,7 +44,7 @@ which will output
 
 ## Using jayesstee in a more object oriented way:
 
-
+```javascript
     import jst from 'jayesstee';
     
     class Page extends jst.Object {
@@ -107,7 +111,7 @@ which will output
     
     // Now add it to the document
     jst("body").appendChild(page);
-
+```
 
 [Codepen for code above](https://codepen.io/efunneko/pen/pxxwBQ)
     
