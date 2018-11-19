@@ -327,48 +327,22 @@ class JstStyle extends JstObject {
   // Stringify the CSS into blocks suitable for insertion into the DOM
   _stringify(prefix, block) {
     let text = "";
-    let mediaQuery;
-    let keyFrames;
-    if (block.hasOwnProperty(':keyframes')) {
-      let name = block[":keyframes"].name;
-      if (name) {
-        keyFrames = name;
-        //let prop = `@keyframes ${name}`;
-        delete(block[":keyframes"].name);
-        //block[prop] = block[":keyframes"];
-        //delete(block[":keyframes"]);
-      }
-      else {
-        console.warn("$keyframe specified, but 'name' property is missing", block);
-      }
-    }
-    if (block.hasOwnProperty(':media')) {
-      let query = block[":media"].query;
-      if (query) {
-        mediaQuery = query;
-        //let prop = `@media ${query}`;
-        delete(block[":media"].query);
-        //block[prop] = block[":media"];
-        //delete(block[":media"]);
-      }
-      else {
-        console.warn("$media specified, but 'query' property is missing");
-      }
-    }
     for(let selector of Object.keys(block)) {
-      let rules = block[selector];
-      let scopedSelector = prefix ? selector.replace(/([\.#])/g, `$1${prefix}`) : selector;
-      if (mediaQuery) {
-        text += `@media ${mediaQuery} {\n`;
-        text += this._stringify(prefix, rules);
-        text += `}\n`;
+      let atRuleRule;
+      if (selector.match(/^@/)) {
+        atRuleRule = block[selector][":rule"];
+        console.log("Got at rule", selector, atRuleRule, block);
+        delete(block[selector][":rule"]);
       }
-      else if (keyFrames) {
-        text += `@keyframes ${keyFrames} {\n`;
+      
+      let rules = block[selector];
+      if (typeof(atRuleRule) != "undefined") {
+        text += `${selector} ${atRuleRule} {\n`;
         text += this._stringify(prefix, rules);
         text += `}\n`;
       }
       else {
+        let scopedSelector = prefix ? selector.replace(/([\.#])/g, `$1${prefix}`) : selector;
         text += `${scopedSelector} `;
         text += this._stringifyObj(rules, "");
       }
@@ -1166,7 +1140,18 @@ jst.extend({
     'samp', 'script', 'section', 'select', 'small', 'source', 'span', 'strong',
     'style', 'sub', 'summary', 'sup', 'svg', 'table', 'tbody', 'td', 'textarea',
     'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul', 'var',
-    'video', 'wbr'
+    'video', 'wbr','altGlyph','altGlyphDef','altGlyphItem','animate','animateColor','animateMotion',
+    'animateTransform','circle','clipPath','color-profile','cursor','defs','desc','discard',
+    'ellipse','feBlend','feColorMatrix','feComponentTransfer','feComposite','feConvolveMatrix',
+    'feDiffuseLighting','feDisplacementMap','feDistantLight','feDropShadow','feFlood','feFuncA',
+    'feFuncB','feFuncG','feFuncR','feGaussianBlur','feImage','feMerge','feMergeNode','feMorphology',
+    'feOffset','fePointLight','feSpecularLighting','feSpotLight','feTile','feTurbulence','filter',
+    'font','font-face','font-face-format','font-face-name','font-face-src','font-face-uri',
+    'foreignObject','g','glyph','glyphRef','hatch','hatchpath','hkern','image','line',
+    'linearGradient','marker','mask','mesh','meshgradient','meshpatch','meshrow','metadata',
+    'missing-glyph','mpath','path','pattern','polygon','polyline','radialGradient','rect','script',
+    'set','solidcolor','stop','style','svg','switch','symbol','text','textPath','title','tref',
+    'tspan','unknown','use','view','vkern'
   ],
   cssFuncs: [
     'attr', 'calc', 'cubic-bezier', 'hsl', 'hsla', 'linear-gradient',
@@ -1314,33 +1299,38 @@ jst.extend({
   },
 
   _normalizeCssObject: function(obj) {
-    const isContainer = new Set(["$media", "$keyframes"]);
+    const atRules = new Set(["$media", "$keyframes", "$supports", "$page",
+                             "$fontFace", "$viewport", "$counterStyle",
+                             "$fontFeatureValues", "$swash", "$ornaments",
+                             "$stylistic", "$styleset", "$characterVariant"]);
     let fixed = [];
     
     for (let prop of Object.keys(obj)) {
 
-      let parts = prop.split("$");
-      let sel   = parts.shift();
-      for (let part of parts) {
-        if (part === "c") {
-          sel = `.${sel}`;
-        }
-        else if (part === "i") {
-          sel = `#${sel}`;
-        }
-        else {
-          sel = `${sel}:${part}`;
-        }
-      }
-
-
+      let sel;
       let fixedSetting = {};
-      if (isContainer.has(prop)) {
+      
+      if (atRules.has(prop)) {
         let processed = this._normalizeCssObject(obj[prop]);
+        sel = prop.replace(/^\$/, "@").replace(/([A-Z])/g, m => "-"+m.toLowerCase());
         processed.map(item => fixedSetting = Object.assign(fixedSetting, item));
       }
       else {
         
+        let parts = prop.split("$");
+        sel       = parts.shift();
+        for (let part of parts) {
+          if (part === "c") {
+            sel = `.${sel}`;
+          }
+          else if (part === "i") {
+            sel = `#${sel}`;
+          }
+          else {
+            sel = `${sel}:${part}`;
+          }
+        }
+
         let setting = jst._flatten(obj[prop]);
         setting.map(val => {
           if (val instanceof Object) {
