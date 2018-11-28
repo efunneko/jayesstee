@@ -1,0 +1,4 @@
+# Stuff to do
+
+- Fix child stamps when updating/refreshing a stamp. Currently we get redefinitions
+  - ignoring it will likely screw up the lookup table...

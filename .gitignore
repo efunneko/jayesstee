@@ -1,7 +1,6 @@
 .DS_STORE
 *.log
 node_modules
-notes
 dist/proto
 examples/*/node_modules
 #*
