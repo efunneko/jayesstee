@@ -57,4 +57,44 @@ Of course the Block class will have to be instantiated itself before its render 
 
 ### obj.cssGlobal(), obj.cssLocal(), obj.cssInstance() - _(Optional)_
 
+These three optional methods allow a JstObject to insert CSS into the page. The three methods will
+insert CSS with different scoping rules:
+
+|Method | Scope |
+|-------|-------|
+|cssGlobal | Insert the CSS with no prefix on class and id names |
+|cssLocal  | Prefix all id and class names in selectors with a unique name for this JstObject. This means the CSS is shared with all JstObjects of this type. |
+|cssInstance | Prefix all class and id names in selectors with a unique name so that each *instance* of this JstObject can have distinct CSS rules |
+
+These optional methods must return a single object or array of objects in the format described in [Inserting CSS](inserting-css.md).
+
+### obj.refresh()
+
+This method is implemented in the base class, JstObject. It must be called if any data changes that requires a re-rendering 
+of the object. It is important to note that Jayesstee does not attempt to notice when data changes to automatically
+refresh - instead the code in the object must determine when it is necessary. While this might seem cumbersome, it does give
+back more control to the designer and can lead to more efficient designs.
+
+Here is an example of `.refresh()` in action:
+
+```javascript
+class List extends jst.Object {
+  constructor(list) {
+    super();
+    this.list = list || [];
+  }
+  render() {
+    return jst.$ul(
+      this.list.map(item => jst.$li(item))
+    );
+  }
+  add(item) {
+    this.list.push(item);
+    this.refresh();
+  }
+}
+```
+
+In the example above, there is an add method to add something to the list. After adding, it is necessary to call
+`this.refresh()` to re-render this object in its location in the DOM.
 
