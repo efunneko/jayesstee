@@ -227,7 +227,7 @@ export class JstObject {
       this._forms[name].setJstElement(jstElement);
     }
     else {
-      this._forms[name] = new JstForm(jstElement);
+      this._forms[name] = new JstFormManager(jstElement);
     }
     return this._forms[name];
   }
@@ -464,10 +464,10 @@ class JstStyleManager extends JstObject {
 
 
 
-// JstForm Class
+// JstFormManager Class
 //
 // Holds some information about forms
-class JstForm {
+class JstFormManager {
   constructor(jstElement) {
     this.jstElement = jstElement;
     this.inputs     = {};
@@ -1136,7 +1136,7 @@ jst.extend({
   debug:     true,
   tagPrefix: "$",
   Object:    JstObject,
-  Form:      JstForm,
+  Form:      JstFormManager,
   Element:   JstElement,
   tags: [
     'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base',
