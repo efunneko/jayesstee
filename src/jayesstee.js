@@ -107,6 +107,8 @@ export class JstObject {
       if (this._jstEl.isDomified) {
         this._jstEl.dom(this);
       }
+
+      Promise.resolve().then(() => this._postRender());
       
     }
     
@@ -134,6 +136,15 @@ export class JstObject {
     else {
       return this._renderFunc(this._companionObj);
     }
+  }
+
+  // Internally called postRender function
+  _postRender() {
+    this.postRender();
+  }
+
+  // Empty base class for postRender - sub classes can override
+  postRender() {
   }
 
   // Called when a parent no longer wants this object's tree in the DOM
