@@ -1,4 +1,4 @@
-# jayesstee.chartjs - [Chart.s](www.chartjs.org) plugin for [Jayesstee](jayesstee.org)
+# jayesstee.chartjs - [Chart.js](www.chartjs.org) plugin for [Jayesstee](jayesstee.org)
 
 This module is a simple plugin to wrap the great [Chart.js](www.chartjs.org) graphing package for easy use within Jayesstee.
 
