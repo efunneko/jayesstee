@@ -1,6 +1,6 @@
 {
   "name": "jayesstee.chartjs",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Plugin for Jayesstee to easily add chart-js to projects",
   "main": "dist/jayesstee.chart.js",
   "homepage": "https://jayesstee.org",
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "babel-runtime": "^6.6.1",
-    "chartjs": "^0.3.24",
+    "chart.js": "^2.7.3",
     "jayesstee": "^0.9.3"
   }
 }

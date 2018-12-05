@@ -328,7 +328,9 @@ class JstStyle extends JstObject {
       
       if (css[type]) {
         for (let block of css[type]) {
-          processedCss[type].push(this._stringify(prefix, block));
+          if (block) {
+            processedCss[type].push(this._stringify(prefix, block));
+          }
         }
       }
     }
@@ -342,7 +344,6 @@ class JstStyle extends JstObject {
       let atRuleRule;
       if (selector.match(/^@/)) {
         atRuleRule = block[selector][":rule"];
-        console.log("Got at rule", selector, atRuleRule, block);
         delete(block[selector][":rule"]);
       }
       
@@ -371,7 +372,7 @@ class JstStyle extends JstObject {
       let attr = prop.replace(/([A-Z])/g, m => "-"+m.toLowerCase());
       val = val.reduce ? val.reduce((acc, item) =>
                                     acc + " " + this._stringifyObj(item, indent + "  "), "") :
-       val.toString();
+        val.rgbaString ? val.rgbaString : val.toString();
       val = val.replace(/\s+/, " ");
       if (val.substr(-2,1) !== "}") {
       text += `${indent}  ${attr}: ${val};\n`;
@@ -692,9 +693,11 @@ class JstElement {
     if (index >= 0) {
       while (sanity--) {
         let item = contents[index];
+        let jstObj = lastJstObject;
         if (item.type === "jst" || item.type === "obj") {
           if (0 && !jst.debug && item.type && item.value._jstEl &&
               item.value._jstEl.contents.length) {
+            // TODO - note that stuff changed with lastJstObject (introduced jstObj)
             // Work on jstobject's items instead
             if (index) {
               contentsStack.push([index - 1, contents, lastJstObject]);
@@ -705,13 +708,13 @@ class JstElement {
             continue;
           }
           else if (item.type === "obj") {
-            lastJstObject = item.value;
+            jstObj = item.value;
             if (item.value._jstEl) {
               item = {value: item.value._jstEl, type: "jst"};
             }
           } 
           let hasEl   = item.value.el; 
-          let childEl = item.value.dom(lastJstObject, lastJstForm);
+          let childEl = item.value.dom(jstObj, lastJstForm);
           if (!hasEl) {
             if (nextEl) {
               el.insertBefore(childEl, nextEl);
@@ -732,6 +735,7 @@ class JstElement {
               el.appendChild(item.el);
             }
           }
+          nextEl = item.el;
         }
         else {
           console.warn("Unexpected content type while dominating:", item.type);
@@ -1008,7 +1012,10 @@ class JstElement {
     for (let param of params) {
       let type = typeof param;
 
-      if (type === "number" || type === "string") {
+      if (param === null) {
+        // Do nothing
+      }
+      else if (type === "number" || type === "string") {
         this.contents.push({type: "textnode", value: param});
       }
       else if (type === "boolean") {
@@ -1305,7 +1312,6 @@ jst.extend({
         evenFlatter.push(entry);
       }
     });
-
     return evenFlatter;
   },
 
@@ -1342,6 +1348,7 @@ jst.extend({
           }
         }
 
+        
         let setting = jst._flatten(obj[prop]);
         setting.map(val => {
           if (val instanceof Object) {
@@ -1364,9 +1371,15 @@ jst.extend({
   _normalizeCssStyles: function(obj) {
     let fixed = {};
     for (let prop of Object.keys(obj)) {
-      if (obj[prop] instanceof Object && !Array.isArray(obj[prop])) {
-        let fixedObj = this._normalizeCssStyles(obj[prop]); 
-        fixed[prop] = [fixedObj];
+      let val = obj[prop];
+      if (val instanceof Object && !Array.isArray(val)) {
+        if (val.rgb && val.rgb().string) {
+          fixed[prop] = val.rgb().string();
+        }
+        else {
+          let fixedObj = this._normalizeCssStyles(obj[prop]); 
+          fixed[prop] = [fixedObj];
+        }
       }
       else {
         let val   = jst._flatten(obj[prop]);

@@ -23,7 +23,8 @@
 
 * Fix support for not inserting jstobject elements in the DOM
 * Fix and test .updateWithParent = true
-
+* It seems that direct text as a parameter can get out of order w.r.t.
+  JstElements passed in: jst.$div(jst.$div("one"), jst.$div("two"), "three")
 
 ## Test
 
