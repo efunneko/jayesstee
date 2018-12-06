@@ -364,7 +364,12 @@ class JstStyle extends JstObject {
 
   _stringifyObj(obj, indent) {
     if (!(obj instanceof Object)) {
-      return obj.toString();
+      if (typeof obj !== "undefined" && obj.toString) {
+        return obj.toString();
+      }
+      else {
+        return "";
+      }
     }
     let text = "{\n";
     for (let prop of Object.keys(obj)) {
