@@ -15,7 +15,7 @@
   },
   "main": "dist/jayesstee.js",
   "scripts": {
-    "build": "babel src -d dist --minified --compace --no-comments",
+    "build": "babel src -d dist --minified --compace --no-comments --source-maps",
     "lint": "eslint src tests",
     "lint:fix": "npm run lint -- --fix"
   },

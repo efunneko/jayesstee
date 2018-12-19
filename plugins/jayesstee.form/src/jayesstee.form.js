@@ -1,12 +1,64 @@
 import {jst}   from "jayesstee";
 
+// Default values that can be overrided
+const defaults = {
+  color: {
+    textLight: "#fff",
+    textDark:  "#000",
+    backgroundLight: "#eee",
+    backgroundDark:  "#555",
+    highlight: "#eee"
+  },
+  font: {
+    size: "13pt",
+    family: "Arial"
+  },
+  label: {
+    position: "top"
+  }
+
+};
+
+
+
+class JstForm {
+  constructor() {
+    this.defaults = defaults;
+  }
+
+  setDefaults(opts) {
+    this.defaults = Object.assign(defaults, opts);
+  }
+
+  $input(opts) {
+    if (opts.type && typeToClass[opts.type]) {
+      return new typeToClass[opts.type](this, opts);
+    }
+    else {
+      return new Input(this, opts);
+    }
+  }
+
+  $form(opts) {
+    return new JstFormElement(opts);
+  }
+   
+}
+
+export let jstform = new JstForm();
+
+
 
 class Input extends jst.Object {
-  constructor(opts, css) {
+  constructor(form, opts) {
     super();
+    this.defaults = form.defaults;
     this.opts = Object.assign({attrs: {}}, opts);
     if (opts.ref) {
       this.opts.attrs.ref = opts.ref;
+    }
+    else {
+      this.opts.attrs.ref = "inputEl";
     }
     if (opts.events) {
       let events = Object.assign({}, opts.events);
@@ -18,10 +70,22 @@ class Input extends jst.Object {
         else {
           events.input = e => this.inputChanged(e);
         }
+        if (events.keydown) {
+          let oldEvent = events.keydown;
+          events.keydown = e => {oldEvent(e); this.inputKeyDown(e);};
+        }
+        else {
+          events.keydown = e => this.inputKeyDown(e);
+        }
       }
       this.opts.attrs.events = events;
     }
-    this.localCss = css;
+    else if (!opts.type || opts.type === "text") {
+      this.opts.attrs.events = {
+        input:   e => this.inputChanged(e),
+        keydown: e => this.inputKeyDown(e)
+      };
+    }
 
     if (opts.css) {
       this.instanceCss = Object.assign({}, opts.css);
@@ -34,6 +98,9 @@ class Input extends jst.Object {
   cssLocal() {
     return [
       {
+        input$c: {
+          marginLeft$px: 8
+        },
         '.input input': {
           padding$px: 2
         },
@@ -41,27 +108,23 @@ class Input extends jst.Object {
         '.input fieldset': {
           border:          "none",
           borderRadius$px: 3,
-          margin$px:       0
+          margin$px:       0,
+          padding$px:      [2,2,2,8]
         },
 
-        '.input input[type=button]': {
-          margin$px:       5,
-          borderRadius$px: 3,
-          padding$px:      4
+        '.inputLabel': {
+          display:    this.defaults.label.position == "top" ? "block" : "inline-block",
+          fontFamily: this.defaults.font.family,
+          fontSize:   this.defaults.font.size,
+          color:      this.defaults.color.textDark,
+          fontWeight: "bold",
+          minWidth$em:    7
         },
-
-        '.input legend': {
-          fontWeight: "bold"
+        
+        inputInner$c: {
+          display:    this.defaults.label.position == "top" ? "block" : "inline-block"
         },
-
-        '.checkbox-item-label, .radio-item-label': {
-          margin$px: [0, 5]
-        },
-
-        '.input input[type=checkbox], .input input[type=radio]': {
-          marginLeft$px: 8
-        },
-
+        
         completionList$c: {
           display: "table",
           position: "absolute",
@@ -81,12 +144,31 @@ class Input extends jst.Object {
           cursor: "pointer"
         },
 
-        label$c: {
+        selected$c: {
+          backgroundColor: "#fff",
+        },
+
+        bannerSelect$c: {
+          display: "inline-block"
+        },
+        
+        bannerSelectItem$c: {
           display:     "inline-block",
-          fontWeight:  "bold",
-          marginRight: 10,
-          minWidth$em: 6
-        }
+          fontSize$px: 13,
+          cursor: "pointer",
+          padding$px: [2, 10],
+          backgroundColor: "#ccc",
+          color: "white"
+        },
+        
+        '.bannerSelectItem:first-child': {
+          borderRadius$px: [8,0,0,8]
+        },
+        
+        '.bannerSelectItem:last-child': {
+          borderRadius$px: [0,8,8,0]
+        },
+        
       },
       this.localCss
     ];
@@ -94,139 +176,43 @@ class Input extends jst.Object {
 
   render() {
     return [
-      jst.$div(
-        {cn: "-input --input"},
-        this.renderField(this.opts)
-      )
-    ];
-  }
-
-  renderField (field) {
-    return jst.$div(
-      {cn: "-field-container"},
-      this["render" + field.type] ? this["render" + field.type](field) : this.renderinput(field)
-    );
-  }
-
-  renderinput(field) {
-    return jst.$fieldset(
-      console.log("field:",field),
-      !field.label ?
-        undefined :
-        jst.$label(
-        {cn: "-label --label"},
-        field.label
-      ),
-      jst.$div(
-        {cn: "-textInputContainer"},
+      this.renderInput(
         jst.$input(
           Object.assign(
             {
-              type:      field.type ? field.type : "text",
+              type: this.opts.type ? this.opts.type : "text",
+              ref: "inputEl",
             },
-            field.attrs
+            this.opts.attrs
           )
         ),
-        console.log("no values:", field),
-        !field.completionValues ?
+        !this.completionValues ?
           undefined :
           jst.$div(
             {cn: "-completionList"},
-            field.completionValues.map(item => 
-                                       jst.$div({cn: "-completionItem",
+            this.completionValues.map(item => 
+                                           jst.$div({cn: "-completionItem " + (item.selected ? "-selected" : ""),
                                                  events: {click: e => this.completionSelect(item, e)}},
-                                                item
+                                                item.text
                                                )
                                       )
           )
       )
-    );
-  }
-
-  renderpassword(field) {
-    return jst.$fieldset(
-      jst.$label(
-        {cn: "-label --label"},
-        field.label
-      ),
-      jst.$input(
-        Object.assign({type: "password", name: field.name}, field.attrs)
-      )
-    );
-  }
-
-  rendercheckbox(field) {
-    return jst.$fieldset(
-      field.legend ? jst.$legend(field.legend) : undefined,
-      field.label ? jst.$legend(field.label) : undefined,
-      field.items.map(item => this.renderCheckboxItem(field.name, item))
-    );
-  }
-
-  renderradio(field) {
-    return jst.$fieldset(
-      field.legend ? jst.$legend(field.legend) : undefined,
-      field.label ? jst.$legend(field.label) : undefined,
-      field.items.map(item => this.renderRadioItem(field.name, field.events, item))
-    );
-  }
-
-  renderselect(field) {
-    return jst.$fieldset(
-      field.label ? jst.$label({cn: "-label --label"}, field.label) : undefined,
-      jst.$select(
-        field.attrs,
-        field.items.map(item => this.renderSelectOption(field.name, item))
-      )
-    );
-  }
-
-  renderTextarea(field) {
-    return jst.$textarea(
-      field.attrs,
-      field.value
-    );
-  }
-  renderRadioItem(name, events, item) {
-    return [
-      jst.$input(
-        {cn: "-radio-item", type: "radio", id: item.id, name: name, events: events}
-      ),
-      jst.$label(
-        {cn: "-radio-item-label", for: item.id},
-        item.text || item.value
-      ),
-      item.noBreak ? undefined : jst.$br()
-    ];
-  }
-  
-  renderCheckboxItem(name, events, item) {
-    return [
-      jst.$input(
-        {type:       "checkbox",
-         id:         item.id,
-         name:       name,
-         value:      item.value,
-         events:     events,
-         properties: item.checked ? ["checked"] : undefined
-        }
-      ),
-      jst.$label(
-        {cn: "-checkbox-item-label", for: item.id},
-        item.text || item.value
-      ),
-      item.noBreak ? undefined : jst.$br()    
     ];
   }
 
-  renderSelectOption(name, item) {
+  renderInput(...inners) {
     return [
-      jst.$option(
-        {cn: "-select-item",
-         value: item.id || item.name || item.value,
-         properties: item.checked || item.selected ? ["selected"] : undefined
-        },
-        item.text || item.name || item.id || item.value
+      jst.$div(
+        {cn: "-input --input"},
+        jst.$fieldset(
+          this.opts.legend ? jst.$div({cn: '-inputLabel --inputLabel'}, this.opts.legend) : undefined,
+          this.opts.label  ? jst.$div({cn: '-inputLabel --inputLabel'}, this.opts.label) : undefined,
+          jst.$div(
+            {cn: "-inputInner"},
+            inners
+          )
+        )
       )
     ];
   }
@@ -238,45 +224,82 @@ class Input extends jst.Object {
     return undefined;
   }
 
+  inputKeyDown(e) {
+    if (e.key === "ArrowDown") {
+      if (this.completionValues) {
+        this.completionIndex = typeof(this.completionIndex) === "undefined" ? 0 :
+          this.completionIndex = (this.completionIndex + 1) %
+          this.completionValues.length;
+        this.markCompletionValue();
+      }
+    }
+    else if (e.key === "ArrowUp") {
+      if (this.completionValues) {
+        this.completionIndex = this.completionIndex ?
+          this.completionIndex - 1 : this.completionValues.length - 1;
+        this.markCompletionValue();
+      }
+    }
+    else if (e.key === "Enter") {
+      if (this.completionValues && this.completionValues.length && 
+          typeof(this.completionIndex) !== "undefined") {
+        this.completionSelect(this.completionValues[this.completionIndex], e);
+      }
+      else {
+        if (this.opts.attrs.events.submit) {
+          this.opts.attrs.events.submit();
+        }
+      }
+    }
+
+    this.refresh();
+
+  }
+
   setValue(val) {
     if (this.inputEl && this.inputEl.el) {
       this.inputEl.el.value = val;
     }
     this.inputEl.value = val;
-    this.opts.completionValues = undefined;
+    this.completionValues = undefined;
     this.refresh();
   }
 
   setCompletionValues(list) {
-    this.completionValues = list;
+    this.completionChoices = list.map(word => {return {text: word};});
     this.doCompletion();
   }
 
   doCompletion() {
-    if (this.completionValues && this.type !== "text") {
+    if (this.completionChoices) {
       let curr = this.getValue() || "";
       if (curr.length == 1) {
         let re   = new RegExp("^" + curr, "i");
-        this.opts.completionValues = this.completionValues.filter(
-          word => word && word.match(re));
+        this.completionValues = this.completionChoices.filter(
+          item => item.text && item.text.match(re));
       }
       else if (curr.length > 1) {
         let re   = new RegExp(curr, "i");
-        this.opts.completionValues = this.completionValues.filter(
-          word => word && word.match(re));
+        this.completionValues = this.completionChoices.filter(
+          item => item.text && item.text.match(re));
       }
       else {
-        this.opts.completionValues = [];
+        this.completionValues = [];
       }
-      if (this.opts.completionValues.length > 8) {
-        this.opts.completionValues.splice(8);
+      if (this.completionValues.length > 8) {
+        this.completionValues.splice(8);
       }
       this.refresh();
     }
   }
 
+  markCompletionValue() {
+    this.completionValues.map(item => item.selected = false);
+    this.completionValues[this.completionIndex].selected = true;
+  }
+
   completionSelect(item, e) {
-    this.setValue(item);
+    this.setValue(item.text);
   }
 
   inputChanged(e) {
@@ -292,7 +315,234 @@ class Input extends jst.Object {
 }
 
 
-export class JstForm extends jst.Object {
+class InputRadioOrCheckbox extends Input {
+  constructor(form, opts) {
+    super(form, opts);
+  }
+
+  cssLocal() {
+    return [
+      super.cssLocal(),
+      {
+        itemLabel$c: {
+          margin$px: [0, 5]
+        },
+
+        input$c: {
+          marginLeft$px: 8
+        },
+      }
+    ];
+  }
+
+  render() {
+    return super.renderInput(
+      jst.$fieldset(
+        this.opts.legend ? jst.$legend(this.opts.legend) : undefined,
+        this.opts.label  ? jst.$legend(this.opts.label) : undefined,
+        this.opts.items.map(item => this.renderItem(this.opts.name, this.opts.events, item))
+      )
+    );
+  }
+
+  renderItem(name, events, item) {
+    return [
+      jst.$input(
+        {cn: "-item --item", type: this.opts.type, id: item.id, name: name, events: events}
+      ),
+      jst.$label(
+        {cn: "-itemLabel --itemLabel", for: item.id},
+        item.text || item.value
+      ),
+      item.noBreak ? undefined : jst.$br()
+    ];
+  }
+  
+}
+
+
+class InputButton extends Input {
+  constructor(form, opts) {
+    super(form, opts);
+  }
+
+  cssLocal() {
+    return [
+      super.cssLocal(),
+      {
+        button$c: {
+          margin$px:       [0, 5],
+          padding$px:      4
+        },
+
+      }
+    ];
+  }
+
+  render() {
+    return super.renderInput(
+      jst.$fieldset(
+        this.opts.legend ? jst.$legend(this.opts.legend) : undefined,
+        this.opts.label  ? jst.$legend(this.opts.label) : undefined,
+        jst.$button(
+          Object.assign({cn: "-button --button"}, this.opts.attrs),
+          this.opts.value
+        )
+      )
+    );
+  }
+
+}
+
+class InputTextArea extends Input {
+  constructor(form, opts) {
+    super(form, opts);
+  }
+
+  cssLocal() {
+    return [
+      super.cssLocal(),
+      {
+        textArea$c: {
+          margin$px: [0, 5]
+        },
+
+        input$c: {
+          marginLeft$px: 8
+        },
+      }
+    ];
+  }
+
+  render() {
+    return jst.$textarea(
+      Object.assign({cn: "-textArea --textArea"}, this.opts.attrs),
+      this.opts.value
+    );
+  }
+}
+
+class InputSelect extends Input {
+  constructor(form, opts) {
+    super(form, opts);
+
+    if (this.opts.selectType === "banner") {
+      if (this.opts.events) {
+        this.bannerChange = this.opts.events.change;
+        this.bannerClick  = this.opts.events.click;
+        delete(this.opts.events);
+      }
+    }
+  }
+
+  cssLocal() {
+    return [
+      super.cssLocal(),
+      {
+        bannerSelect$c: {
+          display: "inline-block"
+        },
+        
+        bannerSelectItem$c: {
+          display:     "inline-block",
+          fontSize$px: 13,
+          cursor: "pointer",
+          padding$px: [2, 10],
+          backgroundColor: this.defaults.color.backgroundDark,
+          color: this.defaults.color.textLight
+        },
+        
+        bannerSelectItem$c$hover: {
+          backgroundColor: this.defaults.color.highlight,
+          color: this.defaults.color.textDark
+        },
+
+        selected$c: {
+          backgroundColor: this.defaults.color.highlight,
+          color: this.defaults.color.textDark
+        },
+        
+      }
+    ];
+  }
+
+  render() {
+    if (this.opts.selectType === "banner") {
+      return this.renderInput(
+        jst.$div(
+          {cn: "-bannerSelect --bannerSelect"},
+          this.opts.attrs,
+          this.opts.items ? this.opts.items.map(item => this.renderBannerSelectOption(this.opts.name, item)) : undefined
+        )
+      );
+    }
+    else {
+      return this.renderInput(
+        jst.$select(
+          this.opts.attrs,
+          this.opts.items ? this.opts.items.map(item => this.renderSelectOption(this.opts.name, item)) : undefined
+        )
+      );
+    }
+  }
+  
+  renderSelectOption(name, item) {
+    return [
+      jst.$option(
+        {cn: "-selectItem",
+         value: item.value || item.id || item.name,
+         properties: item.checked || item.selected ? ["selected"] : undefined
+        },
+        item.text || item.name || item.id || item.value
+      )
+    ];
+  }
+  
+  renderBannerSelectOption(name, item) {
+    return jst.$div(
+      {cn: "-bannerSelectItem " + (item.selected ? "-selected" : ""),
+       value: item.value || item.id || item.name,
+       events: {click: e => this.bannerItemSelect(item)}
+      },
+      item.text || item.name || item.id || item.value
+    );
+  }
+
+  getValue() {
+    if (this.opts.selectType === "banner") {
+      let selectedItem;
+      this.opts.items.map(item => {
+        if (item.selected) {
+          selectedItem = item;
+        }
+      });
+      return selectedItem.value || selectedItem.id || selectedItem.name;
+    }
+    else {
+      if (this.inputEl && this.inputEl.el) {
+        return this.inputEl.el.value;
+      }
+    }
+    return undefined;
+  }
+
+  bannerItemSelect(item) {
+    this.opts.items.map(item => item.selected = false);
+    item.selected = true;
+    this.refresh();
+    if (this.bannerClick) {
+      this.bannerClick(item);
+    }
+    if (this.bannerChange) {
+      this.bannerChange(item);
+    }
+  }
+
+  
+}
+
+
+export class JstFormElement extends jst.Object {
   constructor(opts) {
     super();
     // if (typeof(opts.name) == "undefined") {
@@ -322,7 +572,7 @@ export class JstForm extends jst.Object {
       throw Error("opts.name must be defined on all inputs");
     }
     let optsWithRef = Object.assign({ref: "inputEl"}, opts);
-    let input = new Input(optsWithRef, this.css);
+    let input = new Input(this, optsWithRef, this.css);
     this.inputs.push(input);
     this.inputsByName[opts.name] = input;
     return input;
@@ -343,3 +593,31 @@ export class JstForm extends jst.Object {
   }
   
 }
+
+const typeToClass = {
+  select:   InputSelect,
+  checkbox: InputRadioOrCheckbox,
+  radio:    InputRadioOrCheckbox,
+  textarea: InputTextArea,
+  button:   InputButton,
+  color:    Input,
+  date:     Input,
+  datetime: Input,
+  email:    Input,
+  file:     Input,
+  hidden:   Input,
+  image:    Input,
+  month:    Input,
+  number:   Input,
+  password: Input,
+  radio:    Input,
+  range:    Input,
+  reset:    Input,
+  search:   Input,
+  submit:   InputButton,
+  tel:      Input,
+  text:     Input,
+  time:     Input,
+  url:      Input,
+  week:     Input
+};

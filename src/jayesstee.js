@@ -48,9 +48,19 @@ export class JstObject {
     this._refCount        = 0;
     this.updateWithParent = false;
 
-    if (!this.constructor.prototype._jstClassId) {
-      this.constructor.prototype._jstClassId = globalJstObjectClassId++;
+    // TODO - there must be a better way to do this
+    // Note that orginally, it just stored the _jstClassId directly
+    // on this.constructor.prototype, but that resulted in parent classes ending up
+    // with the same ID as the child (e.g. InputButton -> Input -> JstObject,
+    // InputButton and Input got the same ID)
+    if (!this.constructor.prototype._jstClassIds) {
+      this.constructor.prototype._jstClassIds = {};
     }
+    if (!this.constructor.prototype._jstClassIds[this.constructor.name]) {
+      this.constructor.prototype._jstClassIds[this.constructor.name] = globalJstObjectClassId++;
+    }
+
+    this._jstClassId = this.constructor.prototype._jstClassIds[this.constructor.name];
 
     this._classPrefix     = `jsto${this._jstClassId}-`;
     this._fullPrefix      = `jsto${this._jstClassId}-i${this._jstId}-`;
