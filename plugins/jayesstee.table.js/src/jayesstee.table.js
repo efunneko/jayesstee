@@ -35,6 +35,7 @@ export class JstTable extends jst.Object {
           color: this.opts.color.font
         },
         td$c: {
+          verticalAlign: "top",
           border$px: [1, "solid", "#AAAAAA"],
           padding$px: [3, 6],
         },
@@ -61,30 +62,6 @@ export class JstTable extends jst.Object {
           borderLeft: "none"
         },
 
-        // table.blueTable tfoot {
-        //   font-size: 14px;
-        //   font-weight: bold;
-        //   color: #FFFFFF;
-        //   background: #D0E4F5;
-        //   background: -moz-linear-gradient(top, #dcebf7 0%, #d4e6f6 66%, #D0E4F5 100%);
-        //   background: -webkit-linear-gradient(top, #dcebf7 0%, #d4e6f6 66%, #D0E4F5 100%);
-        //   background: linear-gradient(to bottom, #dcebf7 0%, #d4e6f6 66%, #D0E4F5 100%);
-        //   border-top: 2px solid #444444;
-        // }
-        // table.blueTable tfoot td {
-        //   font-size: 14px;
-        // }
-        // table.blueTable tfoot .links {
-        //   text-align: right;
-        // }
-        // table.blueTable tfoot .links a{
-        //   display: inline-block;
-        //   background: #1C6EA4;
-        //   color: #FFFFFF;
-        //   padding: 2px 8px;
-        //   border-radius: 5px;
-        // }          
-        // }
       },
       this.opts.cssDefault
     ];
@@ -117,17 +94,52 @@ export class JstTable extends jst.Object {
   }
 
   renderTBody() {
-    return jst.$tbody(
-      {cn: "-tbody --tbody"},
-      this.opts.data.map(
-        row => jst.$tr(
-          {cn: "-tr --tr"},
-          row.map(
-            cell => jst.$td({cn: "-td --td"}, cell)
+    let rowSpan = false;
+    if (this.opts.colOpts) {
+      rowSpan = this.opts.colOpts.reduce((acc, opt) => acc || opt.rowSpan, false);
+    }
+    if (rowSpan) {
+      let lastCell  = [];
+      let lastVal   = [];
+      
+      return jst.$tbody(
+        {cn: "-tbody --tbody"},
+        this.opts.data.map(
+          row => jst.$tr(
+            {cn: "-tr --tr"},
+            row.map((cell, i) => {
+              if (this.opts.colOpts[i] && this.opts.colOpts[i].rowSpan) {
+                if (typeof(cell) !== "undefined" && lastVal[i] === cell) {
+                  lastCell[i].attrs.rowSpan++;
+                  return undefined;
+                }
+                else {
+                  lastCell[i] = jst.$td({cn: "-td --td", rowSpan: 1}, cell);
+                  lastVal[i]  = cell;
+                  return lastCell[i];
+                }
+              }
+              else {
+                return jst.$td({cn: "-td --td"}, cell);
+              }
+            })
           )
         )
-      )
-    );
+      );
+    }
+    else {
+      return jst.$tbody(
+        {cn: "-tbody --tbody"},
+        this.opts.data.map(
+          row => jst.$tr(
+            {cn: "-tr --tr"},
+            row.map(
+              cell => jst.$td({cn: "-td --td"}, cell)
+            )
+          )
+        )
+      );
+    }
   }
   
   renderTFoot() {

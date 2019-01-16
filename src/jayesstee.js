@@ -124,6 +124,16 @@ export class JstObject {
     
   }
 
+  html() {
+    if (this._jstEl) {
+      return this._jstEl.html();
+    }
+    else {
+      this.refresh({isParentUpdate: true});
+      return this._jstEl.html();
+    }
+  }
+
   // Internally called render function - will call publically
   // available one 
   _render() {
@@ -597,7 +607,7 @@ class JstElement {
   }
 
   // Return HTML
-  html(opts) {
+  html(opts, lastJstObject) {
     let html = "";
 
     if (!opts)       { opts = {}; }
@@ -608,7 +618,11 @@ class JstElement {
 
     let attrs = [];
     for (let attrName of Object.keys(this.attrs)) {
-      attrs.push(attrName + "=" + "\"" + this._quoteAttrValue(this.attrs[attrName]) + "\"");
+      let val = this.attrs[attrName];
+      if (lastJstObject && (attrName === "class" || attrName === "id") && val.match && val.match(/(^|\s)-/)) {
+        val = val.replace(/(^|\s)(--?)/g, (m, p1, p2) => p1 + (p2 === "-" ? lastJstObject.getClassPrefix() : lastJstObject.getFullPrefix()));
+      }
+      attrs.push(attrName + "=" + "\"" + this._quoteAttrValue(val) + "\"");
     }
     if (attrs.length) {
       html += " " + attrs.join(" ");
@@ -625,10 +639,10 @@ class JstElement {
 
     for (let item of this.contents) {
       if (item.type === "jst") {
-        html += item.value.html(opts);
+        html += item.value.html(opts, lastJstObject);
       }
       else if (item.type === "obj" && item.value._jstEl) {
-        html += item.value._jstEl.html(opts);
+        html += item.value._jstEl.html(opts, item.value);
       }
       else if (item.type === "HTMLElement") {
         html += item.value.innerHTML;
@@ -1258,6 +1272,43 @@ jst.extend({
         return jst[name].apply(this, arguments);
       };
     }
+  },
+
+  // Check passed in value to see if it is of interest in the following way:
+  //   - is it defined at all?
+  //   - if it is an array, does it have any values?
+  //   - if it is an object, does it have properties?
+  //   - if it is a number, always return true
+  // If the checks fail, then return ifFalse or undefined, otherwise return ifTrue || true
+  //
+  // This can be used to prefix rendering blocks with jst.if(val) && ..., e.g.:
+  //    render() {
+  //      // this works because 'undefined' is silently skipped in Jayesstee
+  //      return jst.if(myList) && jst.$ul(myList.map(item => jst.$li(item)))
+  //    }
+  // or if you prefer, you can do a tertiary expression: jst.if(val) ? ... : ...
+  //
+  // Note that if you pass in a boolean, 'false' will return 'undefined' and 'true'
+  // will return 'true'
+  if: function(val, ifTrue, ifFalse) {
+    ifTrue = ifTrue || true;
+    let type = typeof(val);
+    if (type === "number") {
+      return ifTrue;
+    }
+    if (type === "undefined" || val === null) {
+      return ifFalse;
+    }
+    if (Array.isArray(val)) {
+      return val.length ? ifTrue : ifFalse;
+    }
+    if (type === "object") {
+      return Object.keys(val).length === 0 && val.constructor === Object ? ifTrue : ifFalse;
+    }
+
+    // Catch all including boolean type
+    return val ? ifTrue : ifFalse;
+    
   },
 
   // Control debug behaviour - with debug on, jayesstee will include

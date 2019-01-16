@@ -99,7 +99,7 @@ class Input extends jst.Object {
     return [
       {
         input$c: {
-          marginLeft$px: 8
+          marginLeft$px: 12
         },
         '.input input': {
           padding$px: 2
@@ -118,7 +118,7 @@ class Input extends jst.Object {
           fontSize:   this.defaults.font.size,
           color:      this.defaults.color.textDark,
           fontWeight: "bold",
-          minWidth$em:    7
+          minWidth$em:    7.5
         },
         
         inputInner$c: {
@@ -220,6 +220,9 @@ class Input extends jst.Object {
   getValue() {
     if (this.inputEl && this.inputEl.el) {
       return this.inputEl.el.value;
+    }
+    if (this.opts.attrs) {
+      return this.opts.attrs.value;
     }
     return undefined;
   }

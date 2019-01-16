@@ -1,6 +1,6 @@
 {
   "name": "jayesstee.form",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Plugin for Jayesstee to easily add forms and inputs to projects",
   "main": "dist/jayesstee.form.js",
   "homepage": "https://jayesstee.org",
