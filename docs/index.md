@@ -68,4 +68,6 @@ to update the DOM.
 
 A simple example of of the OO method is available in [this codepen](https://codepen.io/efunneko/pen/pxxwBQ).
 
-
+When using the OO method, it is important to note that the user is fully in charge of initiating refreshes 
+when data changes. While this does add a small amount of code (`this.refresh()`) sprinkled around the application
+it does give much more control to the user. 
