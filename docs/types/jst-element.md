@@ -32,7 +32,7 @@ each argument type:
 | Array      | The array will be flattened (including any nested arrays) and treated as top-level arguments |
 | String     | Placed in a textnode in within the element |
 | Number     | Placed in a textnode in within the element |
-| undefined  | Ignored |
+| undefined  | Ignored - this is more important than you might think. In the OO mode, you can have optional params set to `undefined` and they will silently be skipped|
 | Other      | toString() called on it (if available) and placed in a textnode |
 
 ### Passing in JstElement
