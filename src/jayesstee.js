@@ -524,18 +524,17 @@ class JstFormManager {
     let vals = {};
     for (let name of Object.keys(this.inputs)) {
       if (Array.isArray(this.inputs[name])) {
-        if (this.inputs[name][0].attrs.type && this.inputs[name][0].attrs.type.toLowerCase() === "radio") {
+        if (this.inputs[name][0].attrs.type &&
+            (this.inputs[name][0].attrs.type.toLowerCase() === "radio" ||
+             this.inputs[name][0].attrs.type.toLowerCase() === "checkbox")) {
           for (let input of this.inputs[name]) {
             if (input.el.checked) {
-              vals[name] = input.attrs.value || input.attrs.id;
-            }
-          }
-        }
-        else if (this.inputs[name][0].attrs.type && this.inputs[name][0].attrs.type.toLowerCase() === "checkbox") {
-          vals[name] = [];
-          for (let input of this.inputs[name]) {
-            if (input.el.checked) {
-              vals[name].push(input.attrs.value || input.attrs.id);
+              if (typeof input.attrs.value === 'undefined') {
+                vals[name] = input.attrs.id;
+              }
+              else {
+                vals[name] = input.attrs.value;
+              }
             }
           }
         }
@@ -676,6 +675,12 @@ class JstElement {
   // Instantiate into the DOM and return the HTMLElement
   dom(lastJstObject, lastJstForm) {
     // console.warn("Domming:", this.tag, this.attrs.class, lastJstObject);
+
+    // TEMP protection...
+    if (this.tag === "-deleted-") {
+      console.error("Trying to DOM a deleted element", this);
+      return;
+    }
     let el = this.el || document.createElement(this.tag);
 
     if (this.ref && lastJstObject) {
@@ -1303,7 +1308,7 @@ jst.extend({
       return val.length ? ifTrue : ifFalse;
     }
     if (type === "object") {
-      return Object.keys(val).length === 0 && val.constructor === Object ? ifTrue : ifFalse;
+      return Object.keys(val).length === 0 && val.constructor === Object ? ifFalse : ifTrue;
     }
 
     // Catch all including boolean type
