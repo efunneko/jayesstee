@@ -1,7 +1,7 @@
 # Jayesstee - Javascript Templating (JST)
 
 [Getting Started](getting-started.md)  
-[User Guide](documentation.md)  
+[User Guide](user-guide.md)  
 [API](api.md)
 
 
@@ -47,7 +47,7 @@ Here is a quick example of the type of code that will convert data into HTML:
     // tableData obj has [headings] and [[data]]
     jst.$table(
       // Headings
-      jst.$tr(tableData.headings.map(heading => jst.$td(heading))),
+      jst.$tr(tableData.headings.map(heading => jst.$th(heading))),
       // All the rows
       tableData.data.map(row => jst.$tr(row.map(cell => jst.$td(cell))))
     );
@@ -68,4 +68,6 @@ to update the DOM.
 
 A simple example of of the OO method is available in [this codepen](https://codepen.io/efunneko/pen/pxxwBQ).
 
-
+When using the OO method, it is important to note that the user is fully in charge of initiating refreshes 
+when data changes. While this does add a small amount of code (`this.refresh()`) sprinkled around the application
+it does give much more control to the user. 
