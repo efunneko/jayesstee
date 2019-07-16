@@ -296,7 +296,7 @@ Add a div with an unordered-list into the body of the page:
 
 ### Another more dynamic demo of spinning tables:
 
-[CodePen Spinners](https://codepen.io/efunneko/pen/xyaNOY)
+[CodePen Spinners](https://codepen.io/efunneko/pen/bQvLBP)
 
 
 _Copyright 2018 Edward Funnekotter All rights reserved_
