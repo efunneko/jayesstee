@@ -8,7 +8,7 @@ embedded programming - often interfacing with those ASICs and FPGAs.
 
 However, I have always loved building tools to make my life easier. As soon as something becomes
 a bit repetative, I can't help myself but build some tool to do it for me and for those of you who have programmed
-in Verilog know that there are *lots* of opportunities for automating repetative tasks. More recently, I have found that
+in Verilog know that there are **lots** of opportunities for automating repetative tasks. More recently, I have found that
 it is often useful to provide a web front-end to these tools to allow for easy configuration or viewing status as it
 is running.
 
@@ -89,15 +89,14 @@ let rows = [];
 for (let rowData of data) {
   let row = [];
   for (let cell of rowData) {
-    row.push($td(cell);
+    row.push($td(cell); // Passed in arrays are flattened
   }
   rows.push($tr(row));
 }
 let table = $table(rows);
 ```
 
-This does not feel natural and it would only get worse with more complicated structures. It also requires that 
-the element constructor functions allow arrays to be passed in, which are subsequently flattened. Fortunately, 
+This does not feel natural and it would only get worse with more complicated structures. Fortunately, 
 javascript was simultaneously evolving in a very nice way. Functional programming techniques were being added, 
 making the dynamic creation dramatically better (IMO):
 
@@ -114,10 +113,8 @@ let table = $table(
 ```
 
 All of those nasty old school loops are gone. the Array.map(), Array.reduce(), etc. functions can be simply used in
-place. Iterating over data to create HTML elements is easy, but what about conditionals during generation? First, we 
-should define what happens if you pass 'undefined' into the element constructor. When the contructor encounters
-'undefined' as a parameter, it simply skips it. So for the previous example, if we wanted to only output rows
-in which the first columns value was 5 or under, we could do this:
+place. Iterating over data to create HTML elements is easy, but what about conditionals during generation? Note that when the contructor encounters 'undefined' as a parameter, it simply skips it. So for the previous example, if we wanted to 
+only output rows in which the first columns value was 5 or under, we could do this:
 
 ```javascript
 let data = [
@@ -193,6 +190,112 @@ let table = jst.$table(
 )
 ```
 
+### Inserting into the DOM or generating HTML
+
+The original intention of my simple library was that it was going to generate HTML that could be put into
+the DOM or just generate HTML, since I had need for both. This can be done by providing an `.html()` function
+on the constructed `jst.Element` object that is returned from a jst element constructor (e.g. $div()) or 
+by selecting an actual DOM element and inserting the `jst.Element` into it. The following shows both:
+
+```javascript
+import (jst) from "jayesstee";
+
+let div = jst.$div("Hey");
+
+// Insert into the #main element
+jst("#main").addChild(div);
+
+// Just get the HTML
+let html = div.html(); //<div>Hey</div>
+
+```
+
+### Now, what about user interaction
+
+Attaching events to elements is a pretty important part of building the DOM. This is pretty easy to add by 
+including some special handling for the `events` attribute on an element:
+
+```javascript
+import {jst} from "jayesstee";
+
+let div = jst.$div(
+  {
+    events: {
+      click:      e => alert("Clicked!"),
+      mouseenter: e => console.log("In"),
+      mouseout:   e => console.log("Out"),
+    }
+  },
+  "Click Me!"
+);
+```
+
+The code above would create a div with click, mouseenter and mouseout events defined. When inserted into the DOM, 
+it would create the events appropriately.
+
+Next, for user interaction is to get access to inserted elements in the DOM to change and retrieve values. I started
+out just leaving this to the js native command querySelector() to find the element and deal with it directly. This
+is fine, but I have moved more a more friendly (I think) way to interact with the DOM that is explained later. 
+
+
 ### So far so good, but can it work in a simple front-end application
 
+With the basic building blocks described above, I made a number of single page apps. They mostly consisted of
+a main.js that contained the page logic and a templates.js file that contained a single exported object that
+defined named templates - each template a small function that returned a fragment of jst html. A small example:
+
+```javascript
+import {jst} from "jayesstee";
+
+let templates = {
+  page:
+    data => jst.$div({id:"page"},
+              templates.header(data),
+              templates.body(data)
+            ),
+  header: 
+    data => jst.$div({id:"header"},
+              jst.$div({"class":"title"}, data.header.title)
+            ),
+            
+  body:
+    data => jst.$div({id:"body"},
+              // Body of the tool - typically calling lots of other templates...
+            ),
+  
+  // More templates...
+
+};
+
+export default templates;
+```
+
+This was enough to play with for many months, but felt awfully clunky. The main issue was that you would end up
+rerendering the entire page each time that you wanted to reflect a change in the page's state. Obviously, this is
+unacceptable by modern standards.
+
+I had a number of false starts after this, trying to allow for easy rebuilding of only a part of the page. I was
+really trying to avoid getting to 'frameworky' and keep things very simple. Months passed and I finally accepted
+that another concept was needed. Enter `jst.Object`. `jst.Object` is a base class that a user object can be derived
+from. It represents a fragment of HTML elements. Typically, it contains as many elements as it takes to render
+the data that it holds.  Here is a simple example:
+
+```javascript
+import {jst} from "jayesstee";
+
+class MyDiv extends jst.Object {
+  constructor() {
+    super();
+  }
+  render() {
+    return jst.$div("Hello, World!");
+  }
+}
+
+// Create one
+let myDiv = new MyDiv();
+
+// Insert into the body
+jst("body").addChild(myDiv);
+```
 
