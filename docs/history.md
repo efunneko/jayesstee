@@ -60,7 +60,7 @@ let div = $div(
 
 This started to feel much more promising to me. This required constructor functions for each HTML element (e.g. $div, $ul)
 and allowing them to take a variable number of parameters that represented the children of that element felt quite natural
-and easy to write. Adding parameters was pretty easy. Simply include a simple js object as one of the parameters:
+and easy to write. Adding attributes was pretty easy. Simply include a simple js object as one of the parameters:
 
 ```javascript
 let div = $div({"class": "my-class"}, "Hello, World");
