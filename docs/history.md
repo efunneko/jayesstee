@@ -1,4 +1,4 @@
-## Creating HTML and populating the DOM with pure Javascript
+## History of Jayesstee
 
 ### Motivation
 
