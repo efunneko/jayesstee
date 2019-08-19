@@ -283,19 +283,30 @@ the data that it holds.  Here is a simple example:
 ```javascript
 import {jst} from "jayesstee";
 
-class MyDiv extends jst.Object {
-  constructor() {
+class Table extends jst.Object {
+  constructor(headings, data) {
     super();
+    this.headings = headings;
+    this.data     = data;
   }
   render() {
-    return jst.$div("Hello, World!");
+    return jst.$table(
+      jst.$tr(this.headings.map(label => jst.$th(label)),
+      this.data.map(
+        row => jst.$tr(
+          row.map(
+            item => jst.$td(item)
+          )
+        )
+      )
+    );
   }
 }
 
 // Create one
-let myDiv = new MyDiv();
+let myTable = new Table(["Name", "Age", "Gender"], [["Bob", 10, "M"], ["Barb", 12, "F"], ["Chris", 14, "X"]]);
 
 // Insert into the body
-jst("body").addChild(myDiv);
+jst("body").addChild(myTable);
 ```
 
