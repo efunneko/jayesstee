@@ -115,7 +115,7 @@ let table = $table(
 ```
 
 All of those nasty old-school loops are gone. the Array.map(), Array.reduce(), etc. functions can be simply used in
-place. Iterating over data to create HTML elements is easy, but what about conditionals during generation? _Note that when the contructor encounters 'undefined' as a parameter, it simply skips it._ So for the previous example, if we wanted to 
+place. Iterating over data to create HTML elements is easy, but what about conditionals during generation? Note that when the contructor encounters 'undefined' as a parameter, it simply skips it. So for the previous example, if we wanted to 
 only output rows in which the first columns value was 5 or under, we could do this:
 
 ```javascript
@@ -173,8 +173,8 @@ let table = jst.$table(
 Some of you who care about performance might complain that the jst.if() call will result
 in both options being evaluated in order to pass in their values. That is the cost of doing it this way. You can
 instead revert to the earlier example with the tertiary operator or you can use the jst.if() call the following way.
-The only reason to do this is if you want to take avantage of the 'truthy' check that it does - for example an empty
-array returns false. I care about performance in general, so I usually do it this way.
+jst.if() has different rules for 'truthiness', like empty arrays are considered false. With only one parameter it
+will return `true` for 'true' and `undefined` for 'false'. I care about performance in general, so I usually do it this way.
 
 ```javascript
 import {jst} from "jayesstee";
