@@ -148,7 +148,7 @@ let table = $table(
 
 I wasn't really that happy with either of these two options. I have now settled on adding a special 'if' call that 
 takes an expression and two options. It does a speciallized truthy check on the expression and returns the first option
-if true and the second option if false. If no options are given, it returns `true` if true and undefined if false. 
+if true and the second option if false.  
 This is an area that feels like it needs refinement. Here is an example with actually using the library. Like
 the last example, it will skip some rows, but this time it will output "n/a" if the data in the array is undefined.
 
