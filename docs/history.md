@@ -1,6 +1,6 @@
 ## History of Jayesstee
 
-**TL;DR** - https://codepen.io/efunneko/pen/bQvLBP
+**TL;DR** - quick example: https://codepen.io/efunneko/pen/bQvLBP
 
 ### Motivation
 
