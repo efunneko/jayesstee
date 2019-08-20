@@ -1,5 +1,6 @@
 # Jayesstee - Javascript Templating (JST)
 
+[History](history.md)  
 [Getting Started](getting-started.md)  
 [User Guide](user-guide.md)  
 [API](api.md)
