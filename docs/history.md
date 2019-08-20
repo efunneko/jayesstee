@@ -4,7 +4,7 @@
 
 ### Motivation
 
-My background is not web design, which may become apparent by experienced front-end designers reading this. Most of my
+My background is not web design, which may become apparent to experienced front-end designers reading this. Most of my
 technical years of my career have been devoted to ASIC and FPGA architecture and design, followed by low-level 
 embedded programming - often interfacing with those ASICs and FPGAs. 
 
