@@ -1,5 +1,7 @@
 ## History of Jayesstee
 
+**TL;DR** - https://codepen.io/efunneko/pen/bQvLBP
+
 ### Motivation
 
 My background is not web design, which may become apparent by experienced front-end designers reading this. Most of my
@@ -26,7 +28,7 @@ of frameworks (Backbone and Aurelia) to use templating in building my web interf
 readability of the code, they brought a lot of baggage to the underlying tool, the least of which was learning the 
 templating language that allowed the templates to be dynamic.
 
-So I started experimenting with some other way to do it. First I tried to simply build java objects that represented
+So I started experimenting with some other way to do it. First I tried to simply build javascript objects that represented
 the HTML and built a small engine to do the DOM insertions. One of the eary examples of this looked like this:
 
 ```javascript
@@ -112,8 +114,8 @@ let table = $table(
 )
 ```
 
-All of those nasty old school loops are gone. the Array.map(), Array.reduce(), etc. functions can be simply used in
-place. Iterating over data to create HTML elements is easy, but what about conditionals during generation? Note that when the contructor encounters 'undefined' as a parameter, it simply skips it. So for the previous example, if we wanted to 
+All of those nasty old-school loops are gone. the Array.map(), Array.reduce(), etc. functions can be simply used in
+place. Iterating over data to create HTML elements is easy, but what about conditionals during generation? _Note that when the contructor encounters 'undefined' as a parameter, it simply skips it._ So for the previous example, if we wanted to 
 only output rows in which the first columns value was 5 or under, we could do this:
 
 ```javascript
@@ -184,7 +186,7 @@ let data = [
 ];
 
 let table = jst.$table(
-  data.map(row => jst.if(row[0] <= 5) && // Use && to return the following expression
+  data.map(row => jst.if(row[0] <= 5) && // jst.if returns true or undefined based on the expression
                     jst.$tr(row.map(cell => jst.$td(jst.if(cell, cell, "n/a"))))
           )
 )
@@ -242,7 +244,7 @@ is fine, but I have moved more a more friendly (I think) way to interact with th
 
 With the basic building blocks described above, I made a number of single page apps. They mostly consisted of
 a main.js that contained the page logic and a templates.js file that contained a single exported object that
-defined named templates - each template a small function that returned a fragment of jst html. A small example:
+defined named templates - each template a small function that returned a fragment of jst html. A small example of some templates, with each template being a function that would return a jst element:
 
 ```javascript
 import {jst} from "jayesstee";
@@ -275,7 +277,7 @@ rerendering the entire page each time that you wanted to reflect a change in the
 unacceptable by modern standards.
 
 I had a number of false starts after this, trying to allow for easy rebuilding of only a part of the page. I was
-really trying to avoid getting to 'frameworky' and keep things very simple. Months passed and I finally accepted
+really trying to avoid getting too 'frameworky' and keep things very simple. Months passed and I finally accepted
 that another concept was needed. Enter `jst.Object`. `jst.Object` is a base class that a user object can be derived
 from. It represents a fragment of HTML elements. Typically, it contains as many elements as it takes to render
 the data that it holds.  Here is a simple example:
@@ -304,9 +306,240 @@ class Table extends jst.Object {
 }
 
 // Create one
-let myTable = new Table(["Name", "Age", "Gender"], [["Bob", 10, "M"], ["Barb", 12, "F"], ["Chris", 14, "X"]]);
+let myTable = new Table(["Name", "Age", "Gender"], 
+                        [["Bob", 10, "M"], 
+                         ["Barb", 12, "F"], 
+                         ["Chris", 14, "X"]]
+                        );
 
 // Insert into the body
 jst("body").addChild(myTable);
 ```
 
+I later discovered the this is similar to a React Component, but without needing custom compilers, IDEs and 
+source maps to deal with embedded HTML. I still haven't properly explored React to really see how similar this is.
+
+The way the jst.Object works is to hold all the data associated with a particular HTML fragment and also define
+how it should be rendered - optionally, including the CSS too.
+
+Note that instantiating a jst.Object does not render anything. Only when it is included in another jst element that
+is being rendered itself, does the jst.Object get rendered. At any time, the jst object can call this.refresh() to
+force a rerendering, which will update the DOM if it has already been inserted into it.
+
+### So what about CSS
+
+Up until this point, I only cared about getting HTML Elements into the DOM, but since I really wanted the most simple 
+environment for my standalone tools, I didn't want to have to .css or .sass files. I also really wanted the CSS itself to
+be able to be dynamic. And why not throw in some sort of CSS scoping while I was at it.
+
+I have been playing around with this over the last year and I am still not sure I am on the right track. I started with 
+a simple method within a derived jst.Object class to provide css for the object:
+
+```javascript
+class Label extends jst.Object {
+  constructor(text) {
+    super();
+    this.text = text;
+  }
+  css() {
+     return {
+       '.label': {
+         'font-weight': 'bold',
+         'font-size':   '10px'
+       }
+     };
+  }
+  render() {
+    return jst.$div({'class': 'label'}, this.text);
+  }
+}
+```
+
+The CSS is a simple js object whose property names are selectors and values are js objects that define the rules.
+The .css() method is called when rendering the object and is auto inserted into a style element in a defined location in
+the DOM. If the content changes on subsequent renderings then the CSS in the DOM is updated, allowing for it to be
+dynamically changed on each rendering.
+
+Now I am a person that doesn't really like having to put quotation marks around everything. I also don't really like
+'magic' to happen behind the scenes, but this is a place where I have experimented heavily to try to find a balance
+between easy writing of CSS within the javascript languange. Here are a few things that I have done so far:
+
+#### Camelcase instead of dashes
+
+For the CSS returned object, it is acceptable to write using camelcase instead of chained words. For example,
+`font-weight` can be written `fontWeight` and the library will do the appropriate conversions:
+
+```javascript
+css() {
+  return {
+       '.label': {
+         fontWeight: 'bold',
+         fontSize:   '10px'
+       }
+  };
+}
+```
+
+#### Encoding units in the property name
+
+If you are going to have dynamic values be part of a CSS rule, it is a pain to have to append the unit on them.
+For example, if you had the following CSS:
+
+```javascript
+css() {
+  return {
+       '.label': {
+         padding: '10px 5px 10px 20px'
+       }
+  };
+}
+```
+
+But you wanted the padding values to be dynamic, it is annoying to have to do: 
+`${this.padding[0]}px ${this.padding[1]}px ${this.padding[2]}px ${this.padding[3]}px`. Instead, I added the ability
+to put the unit on the end of the property name separated with a '$' and to have the property allow 
+arrays as the value that would simply be serialized with the units:
+
+```javascript
+css() {
+  return {
+       '.label': {
+         fontSize$px: 10,
+         padding$px:  this.padding // this.padding is a 4 entry array
+       }
+  };
+}
+```
+
+#### Specifying an ID selector or Class selector
+
+Having encoded the units this way, I had a go at the selector property name, allowing a $i suffix for IDs and 
+$c suffix for classes:
+
+```javascript
+css() {
+  return {
+       label$c: {  // selects '.label'
+         fontSize$px: 10
+       },
+       main$i: { // selects '#main'
+         backgroundColor: 'black'
+       }
+  };
+}
+```
+
+I will admit, I am not sure this is a good idea. It removes the need for quotes, but you still have to type two 
+characters while making the selector a bit less clear for new users. As it stands, you can put either '.lable' or label$c
+and they are equivalent.
+
+### CSS scoping
+
+CSS has a problem with scoping. There are no built-in, straightforward ways to guarantee that a group of CSS rules 
+are unique from all others in the application. This is particularly a problem when 3rd-party libraries that 
+generate CSS are added to an application.
+
+While it wasn't really a requirement for the type of tools I was building, I took a stab and seeing if I could add
+some level of scoping to the CSS that was being injected into the DOM.
+
+I decided that I wanted three scoping levels: 
+1. **Global scope** - rules apply to entire doc
+1. **Local scope** - rules apply to only the jst.Object, but all instances of them
+1. **Instance scope** - rules are unique per instance of the jst.Oject
+
+The difference between 2 and 3 is that you might write a class called MyTable, which you use multiple times
+within your application. Local CSS would apply to all of the MyTables that you create. Instance CSS would have unique
+CSS for each MyTable you create, allowing for customization of the MyTables at creation time that does not affect 
+other ones.
+
+To achieve this, instead of the method `.css()`, there are three methods possible: `.cssGlobal()`, `.cssLocal()` 
+and `.cssInstance()`. Each of them can have any rules you want, but the Local and Instance versions will prefix
+all class and ID selectors with a dynamic scoping prefix that ensures proper containment of the rules.
+
+With the current definition, there is one more thing that must be done for the scoping to work. The HTML elements must
+slightly change the class name they specify. When the class or ID is Local, then a single '-' must be added to the name.
+For Instance scoping, the name must have a '--' prefix. This is an area that could use some more thinking because it
+is not very intuitive as it stands.
+
+Here is an example:
+
+```javascript
+class Label extends jst.Object {
+  constructor(text, size) {
+    super();
+    this.text = text;
+    this.size = size || 10;
+  }
+  cssLocal() {    // Applies to all Labels
+     return {
+       label$c: {
+         padding$px: 10
+       }
+     };
+  }
+  cssInstance() {  // Applies to this instance of Label
+     return {
+       label$c: {
+         fontSize$px: this.size
+       }
+     };
+  }
+  render() {
+    // The div below must have '-label' and '--label' for its classes. These will automatically
+    // be given unique prefixes to allow for the appropriate scope
+    return jst.$div({'class': '-label --label'}, this.text);
+  }
+}
+```
+
+In the example above, the div being rendered would get two classes: `<jst-object-id>-label` and 
+`<jst-instance-id>-<jst-object-id>-label`, which would match up with the injected CSS rules returned by
+`.cssLocal()` and `.cssInstance()`.
+
+#### And I hate typing 'class'
+
+Final bit of magic to avoid quotations is that instead of typing `'class': 'myclass'`, I allow `cn` to mean
+`'class'` (class name). So you can do: `jst.$div({cn: 'label'}, "text")`. 
+
+### Now back to user interaction
+
+Earlier, I showed how you can add events to inserted HTML Elements using the `events` property in jst elements. 
+But how do you find these elements if you need to get values from them, like you might need to do to get form values.
+
+This idea I borrowed from Aurelia, which has a concept of a 'ref' on an element. You would use it like this:
+
+```javascript
+class Input extends jst.Object {
+  constructor(label) {
+    super();
+    this.label = label;
+  }
+  render() {
+    return jst.$div(
+      jst.$label(this.label),
+      jst.$input({
+        ref: "myInput",  // this.myInput will be set to jst.Element of the input
+        events: {
+          change: e => this.gotChange()
+        }
+      });
+    );
+  }
+  gotChange() {
+    let val = this.myInput.el.value();
+    console.log("Got input:", val);
+  }
+}
+```
+
+By using 'ref', you can tag various elements for later retrieval. This generally works, but I think it needs a bit more 
+thought. It would be better if you could pass a reference to be set rather than a string of the name so that more
+complicated structures could be populated (e.g. an array of references). I unaware of a way to do this in javascript.
+
+### Wrapup
+
+So this is the history of my explorations to this point. The library works for my purposes and might be useful to others
+as either an inspiration to generating HTML from javascript or as the library itself. I would love to hear from anyone
+reading this as to their thoughts.
+
+Obligatory XKCD:  https://xkcd.com/927/
