@@ -46,11 +46,24 @@ the Object Oriented method is superior.
 Here is a quick example of the type of code that will convert data into HTML:
 
     // tableData obj has [headings] and [[data]]
-    jst.$table(
+    let table = jst.$table(
+    
       // Headings
-      jst.$tr(tableData.headings.map(heading => jst.$th(heading))),
+      jst.$tr(
+        tableData.headings.map(
+          heading => jst.$th(heading)
+        )
+      ),
+      
       // All the rows
-      tableData.data.map(row => jst.$tr(row.map(cell => jst.$td(cell))))
+      tableData.data.map(
+        row => jst.$tr(
+          row.map(
+            cell => jst.$td(cell)
+          )
+        )
+      )
+      
     );
 
 See this in action on this [CodePen](https://codepen.io/efunneko/pen/oaaGzy)
