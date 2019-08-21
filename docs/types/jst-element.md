@@ -11,11 +11,11 @@ necessary to insert the JstElement into the DOM for it to be rendered. See
 
 ## Creation
 
-JstElement objects are created by calling the appropriate jst.$\<element\> function,
+JstElement objects are created by calling the appropriate jst.$\<element\> constructor function,
 for example `jst.$div()` would be called to create a JstElement that represented 
 a `<div></div>` element.
 
-During creation, the jst.$<element> creator function will first flatten all passed in
+During creation, the jst.$<element> constructor function will first flatten all passed in
 arguments and iterate over all those arguments performing actions based on the type
 of that argument. The following table summarizes the action performed based on the 
 each argument type:
@@ -25,10 +25,9 @@ each argument type:
 | --------   | ----------- |
 | JstElement | These elements will simply be nested inside the parent element |
 | [JstObject](jst-object.md) | Will call object's render method and treat its result as an argument |
-| [JstForm](jst-form.md)     | Container around some input elements to simplify value retrieval |
 | HTMLElement| Wrap the element in a JstElement and then treat as a JstElement |
 | Object     | The properties of the object will be inherited by the JstElement and inserted as attributes into the HTMLElement |
-| Function   | The function will be called and the result used as input parameters |
+| Function   | The function will be called and the result used as input parameters, flattening as necessary |
 | Array      | The array will be flattened (including any nested arrays) and treated as top-level arguments |
 | String     | Placed in a textnode in within the element |
 | Number     | Placed in a textnode in within the element |
@@ -147,7 +146,7 @@ class Pizza extends jst.Object {
   }
 }
 
-jst.("body").appendChild(new Pizza());
+jst("body").appendChild(new Pizza());
 ```
 
 In the example above, the Pizza class just contains a bunch of other JstObjects (toppings) and
@@ -170,3 +169,22 @@ will produce
 
 ## DOM Insertion
 
+Creating a JstElement will not automatically insert it into the DOM. To do this, either `jst(<selector>).appendChild()` or 
+`jst(<selector>).replaceChild()` must be called with the JstElement. The following will put a single DIV into the body of 
+the document:
+
+```javascript
+let div = jst.$div("Hello, World!");
+
+jst("body").appendChild(div);
+```
+
+## Getting HTML
+
+Any JstElement can output the HTML that it represents. To do this, simply call `.html()` on the JstElement.
+
+```javascript
+let div = jst.$div("Hello, World!");
+
+div.html(); // returns '<div>Hello, World!</div>'
+```
