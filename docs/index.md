@@ -42,29 +42,44 @@ to interoperate with other frameworks or libraries.
 For bigger projects that have a lot of dynamically rendered pages or components, 
 the Object Oriented method is superior. 
 
+A simple list
+```javascript
+import jst from "jayesstee";
+
+jst("body").appendChild(
+    jst.$div({id: "main", "class": "main-class"},
+        jst.$ul(
+            jst.$li({id: "one"},   "First Entry"),
+            jst.$li({id: "two"},   "Second Entry"),
+            jst.$li({id: "three"}, "Third Entry")
+        )
+    )
+);
+```
 
 Here is a quick example of the type of code that will convert data into HTML:
-
-    // tableData obj has [headings] and [[data]]
-    let table = jst.$table(
+```javascript
+// tableData obj has [headings] and [[data]]
+let table = jst.$table(
     
-      // Headings
-      jst.$tr(
-        tableData.headings.map(
-          heading => jst.$th(heading)
-        )
-      ),
+  // Headings
+  jst.$tr(
+    tableData.headings.map(
+      heading => jst.$th(heading)
+    )
+  ),
       
-      // All the rows
-      tableData.data.map(
-        row => jst.$tr(
-          row.map(
-            cell => jst.$td(cell)
-          )
-        )
+  // All the rows
+  tableData.data.map(
+    row => jst.$tr(
+      row.map(
+        cell => jst.$td(cell)
       )
+    )
+  )
       
-    );
+);
+```
 
 See this in action on this [CodePen](https://codepen.io/efunneko/pen/oaaGzy)
 
