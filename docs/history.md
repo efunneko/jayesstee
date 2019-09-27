@@ -1,6 +1,6 @@
 ## History of Jayesstee
 
-**TL;DR** - quick example: https://codepen.io/efunneko/pen/bQvLBP
+**TL;DR** - quick example: [Codepen](https://codepen.io/efunneko/pen/bQvLBP)
 
 ### Motivation
 
@@ -542,4 +542,4 @@ So this is the history of my explorations to this point. The library works for m
 as either an inspiration to generating HTML from javascript or as the library itself. I would love to hear from anyone
 reading this as to their thoughts.
 
-Obligatory XKCD:  https://xkcd.com/927/
+Obligatory XKCD:  [927](https://xkcd.com/927/)
