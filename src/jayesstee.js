@@ -559,12 +559,13 @@ class JstFormManager {
 // the DOM (in a browser) or serialized into HTML.
 class JstElement {
   constructor(tag, params) {
-    this.id       = globalJstElementId++;
-    this.contents = [];
-    this.attrs    = {};
-    this.props    = [];
-    this.events   = {};
-    this.opts     = {};
+    this.id         = globalJstElementId++;
+    this.contents   = [];
+    this.attrs      = {};
+    this.props      = [];
+    this.events     = {};
+    this.opts       = {};
+    this._refCount  = 0;
 
     if (tag instanceof HTMLElement) {
       // Wrapping an element with a JstElement
@@ -729,8 +730,9 @@ class JstElement {
         let item = contents[index];
         let jstObj = lastJstObject;
         if (item.type === "jst" || item.type === "obj") {
-          if (0 && !jst.debug && item.type && item.value._jstEl &&
-              item.value._jstEl.contents.length) {
+          if (0 && !jst.debug && item.value._jstEl &&
+               item.value._jstEl.contents.length) {
+            // console.log("Here: ", item);
             // TODO - note that stuff changed with lastJstObject (introduced jstObj)
             // Work on jstobject's items instead
             if (index) {
@@ -799,27 +801,40 @@ class JstElement {
 
   // Delete this element and remove from the DOM if there
   delete() {
-    // Remove all items associated with this JstElement
-    for (let item of this.contents) {
-      this._deleteItem(item);
-    }
 
-    // Remove any reference to the JstObject (circular reference)
-    delete this.jstObject;
+    this._refCount--;
 
-    // Delete this element, if present
-    if (this.el) {
-      if (this.el.parentNode) {
-        this.el.parentNode.removeChild(this.el);
+    if (this._refCount <= 0) {
+      // Remove all items associated with this JstElement
+      for (let item of this.contents) {
+        this._deleteItem(item);
       }
+
+      // Remove any reference to the JstObject (circular reference)
+      delete this.jstObject;
+
+      // Delete this element, if present
+      if (this.el) {
+        if (this.el.parentNode) {
+          this.el.parentNode.removeChild(this.el);
+        }
+      }
+
+      delete this.el;
+
+      this.tag      = "-deleted-";
+      this.contents = [];
+      this.attrs    = {};
+      this.props    = [];
     }
+    
+  }
 
-    delete this.el;
+  // Add the element to a parent
+  add() {
 
-    this.tag      = "-deleted-";
-    this.contents = [];
-    this.attrs    = {};
-    this.props    = [];
+    this._refCount++;
+    
   }
 
   // Takes a new Jst tree and will do a full comparison to find the differences
@@ -830,6 +845,10 @@ class JstElement {
     let oldIndex = 0;
     let newIndex = 0;
 
+    // console.log("Comparing: ");
+    // jst.print(this);
+    // jst.print(newJst);
+    
     // console.log("CAC>" + " ".repeat(level*2), this.tag + this.id, newJst.tag+newJst.id);
     
     // First check the attributes, props and events
@@ -951,7 +970,10 @@ class JstElement {
         }
 
         if (oldItem.type === "jst") {
-          // If the tags are the same, then we must descend and compare
+          if (oldItem.id != this.id && this._refCount) {
+            break;
+          }
+          // Descend into the JstElement and compare them
           let doReplace = oldItem.value._compareAndCopy(newItem.value, false, undefined, undefined, level+1);
           if (doReplace) {
             break;
@@ -988,7 +1010,7 @@ class JstElement {
     let itemsToDelete = [];
 
     while (oldItem) {
-      // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
+      //console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
       itemsToDelete.push(oldItem);
       oldIndex++;
       oldItem = this.contents[oldIndex];
@@ -999,7 +1021,23 @@ class JstElement {
     if (newJst.contents[newIndex]) {
       // Remove the old stuff and insert the new
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
-      // console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
+      //console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
+      newItems.forEach(item => {
+        // console.log("Adding ", item.type, item.value.id);
+        if (item.type === "jst") {
+          // console.log("Adding ", item.value.id, item.value);
+          item.value.add();
+          if (item.value.el && item.value.el.parentNode) {
+            item.value.el.parentNode.removeChild(item.value.el);
+            if (this.el) {
+              this.el.appendChild(item.value.el);
+            }
+            else {
+              delete(this.el);
+            }
+          }
+        }
+      });
       this.contents.splice(oldStartIndex, 0, ...newItems);
     }
 
@@ -1021,7 +1059,6 @@ class JstElement {
     }
     else if (contentsItem.type === "textnode") {
       if (contentsItem.el && contentsItem.el.parentNode) {
-        // Remove the span element
         contentsItem.el.parentNode.removeChild(contentsItem.el);
         delete contentsItem.el;
       }
@@ -1065,10 +1102,13 @@ class JstElement {
         
       }
       else if (param instanceof JstElement) {
+        param.add();
         this.contents.push({type: "jst", value: param});
       }
       else if (typeof HTMLElement !== 'undefined' && param instanceof HTMLElement) {
-        this.contents.push({type: "jst", value: new JstElement(param)});
+        let jstEl = new JstElement(param);
+        jstEl.add();
+        this.contents.push({type: "jst", value: jstEl});
       }
       else if (type === "object") {
         for (let name of Object.keys(param)) {
@@ -1174,7 +1214,7 @@ jst.extend = jst.fn.extend = function() {
 
 
 jst.extend({
-  debug:     true,
+  debug:     false,
   tagPrefix: "$",
   Object:    JstObject,
   Form:      JstFormManager,
@@ -1472,3 +1512,36 @@ jst.extend({
 
 jst._init();
 
+
+// Debug stuff
+
+jst.print = (jstEl, level) => {
+  level = level || 0;
+  let indent = " ".repeat(level*2);
+
+  let text = indent + `${jstEl.tag} ${jstEl.id}:\n`;
+  text    += indent + `  attrs: ${Object.keys(jstEl.attrs).length}\n`;
+  text    += indent + `  props: ${jstEl.props.length}\n`;
+  text    += indent + `  events: ${Object.keys(jstEl.events).length}\n`;
+  text    += indent + `  hasEl: ${jstEl.el ? "yes" : "no"}\n`;
+  text    += indent + `  hasParentEl: ${jstEl.el && jstEl.el.parentNode ? "yes" : "no"}\n`;
+
+  jstEl.contents.forEach(item => {
+    if (item.type === "jst") {
+      text += jst.print(item.value, level+1);
+    }
+    else if (item.type === "obj" && item.value._jstEl) {
+      text += indent + "  Object\n";
+    }
+    else if (item.type === "textnode") {
+      text += indent + `  Text: ${item.value}\n`;
+    }
+  });
+
+  if (level == 0) {
+    console.log(text);
+  }
+  
+  return text;
+  
+};

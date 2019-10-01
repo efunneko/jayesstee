@@ -143,6 +143,8 @@ module.exports = {
     "/node_modules/",
     "/src/",
     "/examples/",
+    "/todo/",
+    "/test/",
     "plugins/"
   ],
 
