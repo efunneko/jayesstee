@@ -832,9 +832,7 @@ class JstElement {
 
   // Add the element to a parent
   add() {
-
     this._refCount++;
-    
   }
 
   // Takes a new Jst tree and will do a full comparison to find the differences
@@ -1010,7 +1008,7 @@ class JstElement {
     let itemsToDelete = [];
 
     while (oldItem) {
-      //console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
+      // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
       itemsToDelete.push(oldItem);
       oldIndex++;
       oldItem = this.contents[oldIndex];
@@ -1021,12 +1019,12 @@ class JstElement {
     if (newJst.contents[newIndex]) {
       // Remove the old stuff and insert the new
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
-      //console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
+      // console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
       newItems.forEach(item => {
         // console.log("Adding ", item.type, item.value.id);
         if (item.type === "jst") {
           // console.log("Adding ", item.value.id, item.value);
-          item.value.add();
+          //item.value.add();
           if (item.value.el && item.value.el.parentNode) {
             item.value.el.parentNode.removeChild(item.value.el);
             if (this.el) {
