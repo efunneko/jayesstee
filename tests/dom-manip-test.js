@@ -65,21 +65,16 @@ test('Simple table example', () => {
 });
 
 
-test('Add some nodes to the DOM', () => {
+test('DOM element reordering tests', () => {
 
-  let div = jst.$div({cn: "basic", randAttr: "rand", properties: ["checked", "prop"]}, "div1");
-
-  jst("body").appendChild(div);
-
-  let checkHtml = `<body><div class="basic" randAttr="rand" checked prop>div1</div></body>`;
+  let div;
   
-  expect(document.body.html()).toBe(checkHtml);
-
-
+  // Test JstElement reordering
   div = new TestListReorderElements();
   jst("body").replaceChild(div);
   div.doTest();
-  
+
+  // Test JstObject reordering
   div = new TestListReorderObjects();
   jst("body").replaceChild(div);
   div.doTest();

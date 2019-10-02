@@ -1021,14 +1021,24 @@ class JstElement {
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
       // console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
       newItems.forEach(item => {
-        // console.log("Adding ", item.type, item.value.id);
         if (item.type === "jst") {
-          // console.log("Adding ", item.value.id, item.value);
-          //item.value.add();
+          // TODO - needs some refactoring!
           if (item.value.el && item.value.el.parentNode) {
             item.value.el.parentNode.removeChild(item.value.el);
             if (this.el) {
               this.el.appendChild(item.value.el);
+            }
+            else {
+              delete(this.el);
+            }
+          }
+        }
+        else if (item.type === "obj") {
+          // TODO - needs some refactoring!
+          if (item.value._jstEl.el && item.value._jstEl.el.parentNode) {
+            item.value._jstEl.el.parentNode.removeChild(item.value._jstEl.el);
+            if (this.el) {
+              this.el.appendChild(item.value._jstEl.el);
             }
             else {
               delete(this.el);
