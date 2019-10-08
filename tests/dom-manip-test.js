@@ -68,6 +68,12 @@ test('Simple table example', () => {
 test('DOM element reordering tests', () => {
 
   let div;
+
+  // Test added new objects
+  div = new TestListSimpleAddObject();
+  jst("body").replaceChild(div);
+  div.doTest();
+  
   
   // Test JstElement reordering
   div = new TestListReorderElements();
@@ -178,7 +184,8 @@ class TestListReorderObjects extends jst.Object {
     this.refresh();
     
     expected = `<body><div><div>10</div><div>9</div><div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div></div></body>`;
-    received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    //received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    received = document.body.html();
     expect(received).toBe(expected);
 
     // Remove one from the start
@@ -201,6 +208,58 @@ class TestListReorderObjects extends jst.Object {
     expected = `<body><div><div>9</div><div>8</div><div>7</div><div>5</div><div>4</div><div>3</div><div>2</div></div></body>`;
     received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
     expect(received).toBe(expected);
+
+
+    // Add a new object
+    //this.divs = this.divs.map(item => new SimpleObj(item));
+    this.divs.push(new SimpleObj("new"));
+    this.refresh();
+    expected = `<body><div><div>9</div><div>8</div><div>7</div><div>5</div><div>4</div><div>3</div><div>2</div><div>new</div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+
+    
+    // Put another layer of divs around the numbers
+    //this.divs = this.divs.map(item => new SimpleObj(item));
+    this.divs.push("hi");
+    this.refresh();
+    expected = `<body><div><div><div>9</div></div><div>8</div><div>7</div><div>5</div><div>4</div><div>3</div><div>2</div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+    
+    
+  }
+
+  render() {
+    return jst.$div(this.divs);
+  }
+  
+
+}
+
+
+class TestListSimpleAddObject extends jst.Object {
+  constructor(opts) {
+    super();
+    this.divs = [1,2].map(item => new SimpleObj(item));
+  }
+
+  doTest() {
+
+    // Verify that all is in the right order
+    let expected = `<body><div><div>1</div><div>2</div></div></body>`;
+    let received = document.body.html();
+    expect(received).toBe(expected);
+
+    // Add one more object
+    this.divs.push(new SimpleObj(3));
+    this.refresh();
+    
+    expected = `<body><div><div>1</div><div>2</div><div>3</div></div></body>`;
+    //received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    received = document.body.html();
+    expect(received).toBe(expected);
+
     
     
   }

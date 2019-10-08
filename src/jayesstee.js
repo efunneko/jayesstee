@@ -730,7 +730,7 @@ class JstElement {
         let item = contents[index];
         let jstObj = lastJstObject;
         if (item.type === "jst" || item.type === "obj") {
-          if (0 && !jst.debug && item.value._jstEl &&
+          if (!jst.debug && item.value._jstEl &&
                item.value._jstEl.contents.length) {
             // console.log("Here: ", item);
             // TODO - note that stuff changed with lastJstObject (introduced jstObj)
@@ -847,7 +847,7 @@ class JstElement {
     // jst.print(this);
     // jst.print(newJst);
     
-    // console.log("CAC>" + " ".repeat(level*2), this.tag + this.id, newJst.tag+newJst.id);
+    console.log("CAC>" + " ".repeat(level*2), this.tag + this.id, newJst.tag+newJst.id);
     
     // First check the attributes, props and events
     // But only if we aren't the topNode
@@ -1008,7 +1008,7 @@ class JstElement {
     let itemsToDelete = [];
 
     while (oldItem) {
-      // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
+      console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
       itemsToDelete.push(oldItem);
       oldIndex++;
       oldItem = this.contents[oldIndex];
@@ -1019,7 +1019,7 @@ class JstElement {
     if (newJst.contents[newIndex]) {
       // Remove the old stuff and insert the new
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
-      // console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
+      console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
       newItems.forEach(item => {
         if (item.type === "jst") {
           // TODO - needs some refactoring!
@@ -1035,15 +1035,25 @@ class JstElement {
         }
         else if (item.type === "obj") {
           // TODO - needs some refactoring!
-          if (item.value._jstEl.el && item.value._jstEl.el.parentNode) {
-            item.value._jstEl.el.parentNode.removeChild(item.value._jstEl.el);
-            if (this.el) {
-              this.el.appendChild(item.value._jstEl.el);
-            }
-            else {
-              delete(this.el);
+          if (item.value._jstEl.el) {
+            if (item.value._jstEl.el.parentNode) {
+              item.value._jstEl.el.parentNode.removeChild(item.value._jstEl.el);
+              if (this.el) {
+                this.el.appendChild(item.value._jstEl.el);
+              }
             }
           }
+          else {
+            // TODO: Needs to be recursive
+            item.value._jstEl.contents.map(subItem => {
+              if (subItem.value && subItem.value.el && subItem.value.el.parentNode) {
+                subItem.value.el.parentNode.removeChild(subItem.value.el);
+                if (this.el) {
+                  this.el.appendChild(subItem.value.el);
+                }
+              }
+            });
+          }  
         }
       });
       this.contents.splice(oldStartIndex, 0, ...newItems);
@@ -1051,9 +1061,9 @@ class JstElement {
 
     for (let itemToDelete of itemsToDelete) {
       this._deleteItem(itemToDelete);
-    }
-
-    // console.log("CAC>" + " ".repeat(level*2), "/" + this.tag+this.id);
+    } 
+  
+    console.log("CAC>" + " ".repeat(level*2), "/" + this.tag+this.id);
     return false;
     
   }
