@@ -680,7 +680,7 @@ class JstElement {
     // TEMP protection...
     if (this.tag === "-deleted-") {
       console.error("Trying to DOM a deleted element", this);
-      return;
+      return undefined;
     }
     let el = this.el || document.createElement(this.tag);
 
@@ -1035,6 +1035,7 @@ class JstElement {
         }
         else if (item.type === "obj") {
           // TODO - needs some refactoring!
+          console.log("Something to do here (add obj)");
           if (item.value._jstEl.el) {
             if (item.value._jstEl.el.parentNode) {
               item.value._jstEl.el.parentNode.removeChild(item.value._jstEl.el);
@@ -1046,10 +1047,21 @@ class JstElement {
           else {
             // TODO: Needs to be recursive
             item.value._jstEl.contents.map(subItem => {
-              if (subItem.value && subItem.value.el && subItem.value.el.parentNode) {
-                subItem.value.el.parentNode.removeChild(subItem.value.el);
-                if (this.el) {
-                  this.el.appendChild(subItem.value.el);
+              console.log("Adding new subitem:", subItem);
+              if (subItem.value) {
+                if (subItem.value.el) {
+                  if (subItem.value.el.parentNode) {
+                    subItem.value.el.parentNode.removeChild(subItem.value.el);
+                    if (this.el) {
+                      this.el.appendChild(subItem.value.el);
+                    }
+                  }
+                }
+                else if (this.el) {
+                  // Need to add it to the DOM
+                  // TODO - this would break the form functionality
+                   this.el.appendChild(subItem.value.dom(jstObject));
+                  console.log("Have el?", this.el);
                 }
               }
             });
@@ -1060,7 +1072,7 @@ class JstElement {
     }
 
     for (let itemToDelete of itemsToDelete) {
-      this._deleteItem(itemToDelete);
+      this._deleteItem(itemToDelete); 
     } 
   
     console.log("CAC>" + " ".repeat(level*2), "/" + this.tag+this.id);
@@ -1196,6 +1208,21 @@ class JstElement {
   _quoteAttrValue(value) {
     return value.replace ? value.replace(/"/, '\"') : value;
   }
+
+  /*
+  _visitContents(jstObject, callback) {
+    this.contents.forEach(item => {
+      if (item.type === "obj") {
+        this.value._visitContents(item.value, )
+      }
+      else {
+        callback(item);
+      }
+      
+      
+    });
+  }
+  */
 
 }
 

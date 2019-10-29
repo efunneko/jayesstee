@@ -68,7 +68,7 @@ test('Simple table example', () => {
 test('DOM element reordering tests', () => {
 
   let div;
-
+/*
   // Test added new objects
   div = new TestListSimpleAddObject();
   jst("body").replaceChild(div);
@@ -79,6 +79,7 @@ test('DOM element reordering tests', () => {
   div = new TestListReorderElements();
   jst("body").replaceChild(div);
   div.doTest();
+*/
 
   // Test JstObject reordering
   div = new TestListReorderObjects();
@@ -220,8 +221,8 @@ class TestListReorderObjects extends jst.Object {
 
     
     // Put another layer of divs around the numbers
-    //this.divs = this.divs.map(item => new SimpleObj(item));
-    this.divs.push("hi");
+    this.divs = this.divs.map(item => new SimpleObj(item));
+    //this.divs.push("hi");
     this.refresh();
     expected = `<body><div><div><div>9</div></div><div>8</div><div>7</div><div>5</div><div>4</div><div>3</div><div>2</div></div></body>`;
     received = document.body.html();
