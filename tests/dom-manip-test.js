@@ -68,7 +68,7 @@ test('Simple table example', () => {
 test('DOM element reordering tests', () => {
 
   let div;
-/*
+
   // Test added new objects
   div = new TestListSimpleAddObject();
   jst("body").replaceChild(div);
@@ -79,12 +79,13 @@ test('DOM element reordering tests', () => {
   div = new TestListReorderElements();
   jst("body").replaceChild(div);
   div.doTest();
-*/
 
+  
   // Test JstObject reordering
   div = new TestListReorderObjects();
   jst("body").replaceChild(div);
   div.doTest();
+
   
 });
 
@@ -104,9 +105,12 @@ class TestListReorderElements extends jst.Object {
 
     // Verify that all is in the right order
     let expected = `<body><div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div></div></body>`;
-    let received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    let received = document.body.html();
     expect(received).toBe(expected);
 
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
+    
     // Reverse the items and make sure they are correct
     let reverse = [];
     this.divs.forEach(item => reverse.unshift(item));
@@ -116,28 +120,40 @@ class TestListReorderElements extends jst.Object {
     this.refresh();
     
     expected = `<body><div><div>10</div><div>9</div><div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div></div></body>`;
-    received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    received = document.body.html();
     expect(received).toBe(expected);
 
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
+    
     // Remove one from the start
     this.divs.shift();
     this.refresh();
     expected = `<body><div><div>9</div><div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div></div></body>`;
-    received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    received = document.body.html();
+    expect(received).toBe(expected);
+    
+    received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
     
     // Remove one from the end
     this.divs.pop();
     this.refresh();
     expected = `<body><div><div>9</div><div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div></div></body>`;
-    received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    received = document.body.html();
+    expect(received).toBe(expected);
+    
+    received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
     
     // Remove one from the middle
     this.divs.splice(3, 1);
     this.refresh();
     expected = `<body><div><div>9</div><div>8</div><div>7</div><div>5</div><div>4</div><div>3</div><div>2</div></div></body>`;
-    received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    received = document.body.html();
+    expect(received).toBe(expected);
+    
+    received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
     
     
@@ -166,14 +182,14 @@ class SimpleObj extends jst.Object {
 class TestListReorderObjects extends jst.Object {
   constructor(opts) {
     super();
-    this.divs = [1,2,3,4,5,6,7,8,9,10].map(item => new SimpleObj(item));
+    this.divs = [1,2,8,9,10].map(item => new SimpleObj(item));
   }
 
   doTest() {
 
     // Verify that all is in the right order
-    let expected = `<body><div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div></div></body>`;
-    let received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    let expected = `<body><div><div>1</div><div>2</div><div>8</div><div>9</div><div>10</div></div></body>`;
+    let received = document.body.html();
     expect(received).toBe(expected);
 
     // Reverse the items and make sure they are correct
@@ -184,50 +200,79 @@ class TestListReorderObjects extends jst.Object {
     // Must refresh
     this.refresh();
     
-    expected = `<body><div><div>10</div><div>9</div><div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div></div></body>`;
-    //received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    expected = `<body><div><div>10</div><div>9</div><div>8</div><div>2</div><div>1</div></div></body>`;
     received = document.body.html();
     expect(received).toBe(expected);
 
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
+    
     // Remove one from the start
     this.divs.shift();
     this.refresh();
-    expected = `<body><div><div>9</div><div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div></div></body>`;
-    received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    expected = `<body><div><div>9</div><div>8</div><div>2</div><div>1</div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+    
+    received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
     
     // Remove one from the end
     this.divs.pop();
     this.refresh();
-    expected = `<body><div><div>9</div><div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div></div></body>`;
-    received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    expected = `<body><div><div>9</div><div>8</div><div>2</div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+    
+    received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
     
     // Remove one from the middle
-    this.divs.splice(3, 1);
+    this.divs.splice(1, 1);
     this.refresh();
-    expected = `<body><div><div>9</div><div>8</div><div>7</div><div>5</div><div>4</div><div>3</div><div>2</div></div></body>`;
-    received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    expected = `<body><div><div>9</div><div>2</div></div></body>`;
+    received = document.body.html();
     expect(received).toBe(expected);
 
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
+    
 
     // Add a new object
-    //this.divs = this.divs.map(item => new SimpleObj(item));
-    this.divs.push(new SimpleObj("new"));
+    this.divs.splice(1, 0, new SimpleObj("new"));
     this.refresh();
-    expected = `<body><div><div>9</div><div>8</div><div>7</div><div>5</div><div>4</div><div>3</div><div>2</div><div>new</div></div></body>`;
+    expected = `<body><div><div>9</div><div>new</div><div>2</div></div></body>`;
     received = document.body.html();
     expect(received).toBe(expected);
 
-    
-    // Put another layer of divs around the numbers
-    this.divs = this.divs.map(item => new SimpleObj(item));
-    //this.divs.push("hi");
-    this.refresh();
-    expected = `<body><div><div><div>9</div></div><div>8</div><div>7</div><div>5</div><div>4</div><div>3</div><div>2</div></div></body>`;
-    received = document.body.html();
+    received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
     
+    // Put another layer of divs around the numbers
+    this.divs.pop();
+    this.refresh();
+
+    let oldDivs = this.divs;
+    this.divs = this.divs.map(item => new SimpleObj(item));
+    this.refresh();
+    
+    expected = `<body><div><div><div>9</div></div><div><div>2</div></div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
+
+
+    this.divs = oldDivs;
+    this.refresh();
+    
+    expected = `<body><div><div>9</div><div>2</div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
     
   }
 
@@ -257,7 +302,7 @@ class TestListSimpleAddObject extends jst.Object {
     this.refresh();
     
     expected = `<body><div><div>1</div><div>2</div><div>3</div></div></body>`;
-    //received = document.body.html().replace(/<\/?jstobject[^>]*>/g, "");
+    //received = document.body.html();
     received = document.body.html();
     expect(received).toBe(expected);
 
