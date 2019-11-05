@@ -14,7 +14,7 @@ in Verilog know that there are **lots** of opportunities for automating repetati
 it is often useful to provide a web front-end to these tools to allow for easy configuration or viewing status as it
 is running.
 
-Putting a web interface on a simple tool as a one-manned team has made me desire a simple 'all in one file' and 
+Putting a web interface on a simple tool as a one-man team has made me desire a simple 'all in one file' and 
 'all in one language' way to produce simple dynamic web pages. This page is a rambling history of my path to get to
 where I am with the [jayesstee library](https://jayesstee.org). At present, it is still < 1.0.0 and I am hoping for 
 comments before I bump it to 1.0.0 where I would expect the API to be stable and follow proper semantic versioning.
