@@ -47,7 +47,7 @@ which will output
 ```javascript
 import jst from 'jayesstee';
 
-class Page extends jst.Object {
+class Page extends jst.Component {
     constructor(appData) {
         super();
         this.header = new Header(appData);
@@ -65,7 +65,7 @@ class Page extends jst.Object {
     }
 }
 
-class Body extends jst.Object {
+class Body extends jst.Component {
     constructor(appData) {
       super();
       this.appData = appData;
@@ -75,7 +75,7 @@ class Body extends jst.Object {
     }
 }
 
-class Header extends jst.Object {
+class Header extends jst.Component {
     constructor(appData) {
         super();
         this.headerInfo = appData.headerInfo;
