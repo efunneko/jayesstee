@@ -29,7 +29,7 @@ readability of the code, they brought a lot of baggage to the underlying tool, t
 templating language that allowed the templates to be dynamic.
 
 So I started experimenting with some other way to do it. First I tried to simply build javascript objects that represented
-the HTML and built a small engine to do the DOM insertions. One of the eary examples of this looked like this:
+the HTML and built a small engine to do the DOM insertions. One of the early examples of this looked like this:
 
 ```javascript
 let fragment = [
@@ -91,7 +91,7 @@ let rows = [];
 for (let rowData of data) {
   let row = [];
   for (let cell of rowData) {
-    row.push($td(cell); // Passed in arrays are flattened
+    row.push($td(cell)); // Passed in arrays are flattened
   }
   rows.push($tr(row));
 }
