@@ -175,7 +175,6 @@ class Input extends jst.Object {
   }
 
   render() {
-    console.log("EDE: rerender", this.inputEl, this.inputEl ? this.inputEl.el.value: "");
     return [
       this.renderInput(
         jst.$input(
@@ -275,10 +274,8 @@ class Input extends jst.Object {
   }
 
   doCompletion() {
-    console.log("Docompletion");
     if (this.completionChoices) {
       let curr = this.getValue() || "";
-      console.log("Completion value:", curr);
       if (curr.length == 1) {
         let re   = new RegExp("^" + curr, "i");
         this.completionValues = this.completionChoices.filter(
