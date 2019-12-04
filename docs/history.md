@@ -278,14 +278,14 @@ unacceptable by modern standards.
 
 I had a number of false starts after this, trying to allow for easy rebuilding of only a part of the page. I was
 really trying to avoid getting too 'frameworky' and keep things very simple. Months passed and I finally accepted
-that another concept was needed. Enter `jst.Object`. `jst.Object` is a base class that a user object can be derived
+that another concept was needed. Enter `jst.Component`. `jst.Component` is a base class that a user object can be derived
 from. It represents a fragment of HTML elements. Typically, it contains as many elements as it takes to render
 the data that it holds.  Here is a simple example:
 
 ```javascript
 import {jst} from "jayesstee";
 
-class Table extends jst.Object {
+class Table extends jst.Component {
   constructor(headings, data) {
     super();
     this.headings = headings;
@@ -319,11 +319,11 @@ jst("body").addChild(myTable);
 I later discovered the this is similar to a React Component, but without needing custom compilers, IDEs and 
 source maps to deal with embedded HTML. I still haven't properly explored React to really see how similar this is.
 
-The way the jst.Object works is to hold all the data associated with a particular HTML fragment and also define
+The way the jst.Component works is to hold all the data associated with a particular HTML fragment and also define
 how it should be rendered - optionally, including the CSS too.
 
-Note that instantiating a jst.Object does not render anything. Only when it is included in another jst element that
-is being rendered itself, does the jst.Object get rendered. At any time, the jst object can call this.refresh() to
+Note that instantiating a jst.Component does not render anything. Only when it is included in another jst element that
+is being rendered itself, does the jst.Component get rendered. At any time, the jst object can call this.refresh() to
 force a rerendering, which will update the DOM if it has already been inserted into it.
 
 ### So what about CSS
@@ -333,10 +333,10 @@ environment for my standalone tools, I didn't want to have to .css or .sass file
 be able to be dynamic. And why not throw in some sort of CSS scoping while I was at it.
 
 I have been playing around with this over the last year and I am still not sure I am on the right track. I started with 
-a simple method within a derived jst.Object class to provide css for the object:
+a simple method within a derived jst.Component class to provide css for the object:
 
 ```javascript
-class Label extends jst.Object {
+class Label extends jst.Component {
   constructor(text) {
     super();
     this.text = text;
@@ -356,7 +356,7 @@ class Label extends jst.Object {
 ```
 
 The CSS is a simple js object whose property names are selectors and values are js objects that define the rules.
-The .css() method is called when rendering the object and is auto inserted into a style element in a defined location in
+The .css() method is called when rendering the component and is auto inserted into a style element in a defined location in
 the DOM. If the content changes on subsequent renderings then the CSS in the DOM is updated, allowing for it to be
 dynamically changed on each rendering.
 
@@ -402,10 +402,11 @@ arrays as the value that would simply be serialized with the units:
 
 ```javascript
 css() {
+  let padding = [10, 5, 10, 20];
   return {
        '.label': {
          fontSize$px: 10,
-         padding$px:  this.padding // this.padding is a 4 entry array
+         padding$px:  padding // 'px' will be appended to all values in array
        }
   };
 }
@@ -444,8 +445,8 @@ some level of scoping to the CSS that was being injected into the DOM.
 
 I decided that I wanted three scoping levels: 
 1. **Global scope** - rules apply to entire doc
-1. **Local scope** - rules apply to only the jst.Object, but all instances of them
-1. **Instance scope** - rules are unique per instance of the jst.Oject
+1. **Local scope** - rules apply to only the jst.Component, but all instances of them
+1. **Instance scope** - rules are unique per instance of the jst.Component
 
 The difference between 2 and 3 is that you might write a class called MyTable, which you use multiple times
 within your application. Local CSS would apply to all of the MyTables that you create. Instance CSS would have unique
@@ -457,14 +458,14 @@ and `.cssInstance()`. Each of them can have any rules you want, but the Local an
 all class and ID selectors with a dynamic scoping prefix that ensures proper containment of the rules.
 
 With the current definition, there is one more thing that must be done for the scoping to work. The HTML elements must
-slightly change the class name they specify. When the class or ID is Local, then a single '-' must be added to the name.
+slightly change the class name they specify. When the class or ID is Local, a single '-' must be added to the name.
 For Instance scoping, the name must have a '--' prefix. This is an area that could use some more thinking because it
 is not very intuitive as it stands.
 
 Here is an example:
 
 ```javascript
-class Label extends jst.Object {
+class Label extends jst.Component {
   constructor(text, size) {
     super();
     this.text = text;
@@ -509,7 +510,7 @@ But how do you find these elements if you need to get values from them, like you
 This idea I borrowed from Aurelia, which has a concept of a 'ref' on an element. You would use it like this:
 
 ```javascript
-class Input extends jst.Object {
+class Input extends jst.Component {
   constructor(label) {
     super();
     this.label = label;
@@ -526,7 +527,7 @@ class Input extends jst.Object {
     );
   }
   gotChange() {
-    let val = this.myInput.el.value();
+    let val = this.myInput.el.value;
     console.log("Got input:", val);
   }
 }
