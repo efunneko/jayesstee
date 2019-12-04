@@ -219,8 +219,10 @@ jst.extend({
   //
   // Called automatically
   _init: function() {
+    //jst.debug = 1;
     JstElement.init(jst);
     JstComponent.init(jst);
+    JstStyleManager.init(jst);
     jst.addCustomElements(jst.tags);
     jst.addCssFunctions(jst.cssFuncs);
     jst.addCssUnits(jst.cssUnits);

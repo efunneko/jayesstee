@@ -273,7 +273,7 @@ export class JstComponent {
     // We should now have a single array that could have objects or values
     flat.map(entry => {
       if (entry instanceof Object) {
-        evenFlatter = evenFlatter.concat(jst._normalizeCssObject(entry));
+        evenFlatter = evenFlatter.concat(this._normalizeCssObject(entry));
       }
       else {
         evenFlatter.push(entry);
@@ -319,7 +319,7 @@ export class JstComponent {
         let setting = utils._flatten(obj[prop]);
         setting.map(val => {
           if (val instanceof Object) {
-            fixedSetting = Object.assign(fixedSetting, jst._normalizeCssStyles(val));
+            fixedSetting = Object.assign(fixedSetting, this._normalizeCssStyles(val));
           }
           else {
             fixedSetting = val;
@@ -352,7 +352,7 @@ export class JstComponent {
         let val   = utils._flatten(obj[prop]);
         let match = prop.match(/^([^$]+)\$(.+)/);
         if (match) {
-          val = val.map(item => jst._addCssUnit(match[2], item));
+          val = val.map(item => this._addCssUnit(match[2], item));
           fixed[match[1]] = val;
         }
         else {

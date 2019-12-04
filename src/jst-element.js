@@ -177,7 +177,6 @@ export class JstElement {
   //      lastJstComponent - reference to the JstComponent containing this element
   //      lastJstForm      - reference to the JstForm containing this element 
   dom(lastJstComponent, lastJstForm) {
-    // console.warn("Domming:", this.tag, this.attrs.class, lastJstComponent);
 
     // TEMP protection...
     if (this.tag === "-deleted-") {
@@ -214,6 +213,7 @@ export class JstElement {
         // '-' or '--', add the scope to their values
         if (lastJstComponent && (attrName === "class" || attrName === "id") &&
             val.match && val.match(/(^|\s)-/)) {
+          console.warn("EDE Fixing class", val, lastJstComponent.getName(), lastJstComponent.getClassPrefix());
           val = val.replace(/(^|\s)(--?)/g,
                             (m, p1, p2) => p1 +
                             (p2 === "-" ? lastJstComponent.getClassPrefix() :
@@ -235,30 +235,38 @@ export class JstElement {
       }
       
       // Now add all the contents of the element
-      this._visitContents(lastJstComponent, (jstComponent, item) => {
-
-        if (item.type === JstElementType.TEXTNODE) {
-          if (!item.el) {
-            item.el = document.createTextNode(item.value);
-            el.appendChild(item.el);
+      this._visitContents(
+        lastJstComponent,
+        // Called per JstElement
+        (jstComponent, item) => {
+          
+          if (item.type === JstElementType.TEXTNODE) {
+            if (!item.el) {
+              item.el = document.createTextNode(item.value);
+              el.appendChild(item.el);
+            }
           }
-        }
-        else if (item.type === JstElementType.JST_ELEMENT) {
-          let hasEl   = item.value.el; 
-          let childEl = item.value.dom(jstComponent, lastJstForm);
-          if (!hasEl) {
-            el.appendChild(childEl);
+          else if (item.type === JstElementType.JST_ELEMENT) {
+            let hasEl   = item.value.el;
+            let childEl = item.value.dom(jstComponent, lastJstForm);
+            if (!hasEl) {
+              el.appendChild(childEl);
+            }
+            else if (childEl.parentNode && childEl.parentNode !== el) {
+              childEl.parentNode.removeChild(childEl);
+              el.appendChild(childEl);
+            }
           }
-          else if (childEl.parentNode && childEl.parentNode !== el) {
-            childEl.parentNode.removeChild(childEl);
-            el.appendChild(childEl);
+          else {
+            console.error("Unexpected contents item type:", item.type);
           }
+          
+        },
+        // Called per JstComponent
+        jstComponent => {
+          jstComponent.parentEl = el;
         }
-        else {
-          console.error("Unexpected contents item type:", item.type);
-        }
-        
-      });
+      );
 
     }
 
@@ -313,7 +321,7 @@ export class JstElement {
     let newIndex = 0;
 
     // console.log("CAC>" + " ".repeat(level*2), this.tag + this.id, newJst.tag+newJst.id);
-    
+
     // First check the attributes, props and events
     // But only if we aren't the topNode
     if (!topNode) {
@@ -444,16 +452,23 @@ export class JstElement {
 
         if (oldItem.type === JstElementType.JST_ELEMENT) {
 
-          // Don't continue if the ID of the item has changed
-          // TODO - why does the refcount important here?
-          if (oldItem.id != this.id && this._refCount) {
+          // This detects items that are being replaced by pre-existing items
+          // They are too complicated to try to do in place replacements
+          if (oldItem.value.id !== newItem.value.id && newItem.value._refCount > 1) {
             break;
           }
           
-          // Descend into the JstElement and compare them
-          let doReplace = oldItem.value._compareAndCopy(newItem.value, false, undefined, undefined, level+1);
+          // Descend into the JstElement and compare them and possibly copy their
+          // content in place
+          let doReplace = oldItem.value._compareAndCopy(newItem.value, false,
+                                                        jstComponent, undefined, level+1);
           if (doReplace) {
             break;
+          }
+
+          // Need to decrement the ref counts for items that didn't change
+          if (oldItem.value.id === newItem.value.id) {
+            this._deleteItem(newItem);
           }
           
         }
@@ -467,13 +482,16 @@ export class JstElement {
           // Don't bother descending into JstComponents - they take care of themselves
           
         }
-        else if (oldItem.type === JstElementType.TEXTNODE && oldItem.value !== newItem.value) {
+        else if (oldItem.type === JstElementType.TEXTNODE) {
 
-          // For textnodes, we just fix them inline
-          if (oldItem.el) {
-            oldItem.el.textContent = newItem.value;
+          if (oldItem.value !== newItem.value) {
+
+            // For textnodes, we just fix them inline
+            if (oldItem.el) {
+              oldItem.el.textContent = newItem.value;
+            }
+            oldItem.value = newItem.value;
           }
-          oldItem.value = newItem.value;
         }
 
         oldIndex++;
@@ -492,7 +510,7 @@ export class JstElement {
     let itemsToDelete = [];
 
     while (oldItem) {
-      // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem);
+      // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem.value.tag, oldItem.value.id);
       itemsToDelete.push(oldItem);
       oldIndex++;
       oldItem = this.contents[oldIndex];
@@ -506,11 +524,10 @@ export class JstElement {
       // Get list of new items that will be inserted
       let newItems = newJst.contents.splice(newIndex, newJst.contents.length - newIndex);
 
-      // console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
-
+      //console.log("CAC>  " + " ".repeat(level*2), "new items being added:", newItems);
+      
       newItems.forEach(item => {
         if (item.type === JstElementType.JST_ELEMENT) {
-          // TODO - needs some refactoring!
           if (item.value.el && item.value.el.parentNode) {
             item.value.el.parentNode.removeChild(item.value.el);
             if (this.el) {
@@ -519,6 +536,16 @@ export class JstElement {
             else {
               delete(this.el);
             }
+          }
+          else if (this.el) {
+            // Need to add it
+            this.el.appendChild(item.value.dom(jstComponent));
+          }
+          else if (jstComponent && jstComponent.parentEl) {
+            jstComponent.parentEl.appendChild(item.value.dom(jstComponent));
+          }
+          else {
+            console.warn("Not adding an element to the DOM", item.value.tag, item, this, jstComponent);
           }
         }
         else if (item.type === JstElementType.JST_COMPONENT) {
@@ -532,23 +559,40 @@ export class JstElement {
           }
           else {
             // Need to visit all the items for this component and hook them in
-            item.value._jstEl._visitContents(item.value, (jstComponent, subItem) => {
-              if (subItem.value) {
-                if (subItem.value.el) {
-                  if (subItem.value.el.parentNode) {
-                    subItem.value.el.parentNode.removeChild(subItem.value.el);
-                    if (this.el) {
-                      this.el.appendChild(subItem.value.el);
+            item.value._jstEl._visitContents(
+              item.value,
+              // Called per JstElement
+              (subJstComponent, subItem) => {
+                if (subItem.value) {
+                  if (subItem.value.el) {
+                    if (subItem.value.el.parentNode) {
+                      subItem.value.el.parentNode.removeChild(subItem.value.el);
+                      if (this.el) {
+                        this.el.appendChild(subItem.value.el);
+                      }
+                      else if (jstComponent.parentEl) {
+                        jstComponent.parentEl.appendChild(subItem.value.el);
+                      }
                     }
                   }
+                  else if (this.el) {
+                    // Need to add it to the DOM
+                    // TODO - this would break the form functionality
+                    this.el.appendChild(subItem.value.dom(subJstComponent));
+                  }
+                  else if (jstComponent.parentEl) {
+                    jstComponent.parentEl.appendChild(subItem.value.dom(subJstComponent));
+                  }
                 }
-                else if (this.el) {
-                  // Need to add it to the DOM
-                  // TODO - this would break the form functionality
-                   this.el.appendChild(subItem.value.dom(jstComponent));
-                }
+              },
+              // Called per JstComponent
+              subJstComponent => {
+                subJstComponent.parentEl = this.el || jstComponent.parentEl;
               }
-            });
+            );
+
+            // And adjust this component's parentEl
+            item.value.parentEl = this.el || jstComponent.parentEl;
           }  
         }
       });
@@ -696,25 +740,28 @@ export class JstElement {
 
   // This will walk through the contents of this element and
   // also dive into any component's contents
-  _visitContents(jstComponent, callback) {
+  _visitContents(jstComponent, elementCb, componentCb) {
     this.contents.forEach(item => {
       if (item.type === JstElementType.JST_COMPONENT) {
+        if (componentCb) {
+          componentCb(item.value);
+        }
         if (item.value._jstEl) {
 
           // If in debug mode, a <jstcomponent> element surrounds
           // all JstComponents. In this case, there is no need to
           // visit a component's contents
           if (jst.debug) {
-            callback(item.value, item.value._jstEl);
+            elementCb(item.value, {type: JstElementType.JST_ELEMENT, value: item.value._jstEl});
           }
           else {
-            item.value._jstEl._visitContents(item.value, callback);
+            item.value._jstEl._visitContents(item.value, elementCb, componentCb);
           }
           
         }
       }
       else {
-        callback(jstComponent, item);
+        elementCb(jstComponent, item);
       }
     });
   }

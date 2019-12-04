@@ -5,11 +5,19 @@ import {JstComponent} from './jst-component.js';
 import {JstStyle}     from './jst-style.js';
 
 
+// Reference to global JST
+let jst;
+
 // JstStyleManager Class
 //
 // This class defines the singletone that manages the set of style elements
 // that are inserted for application created CSS
 export class JstStyleManager extends JstComponent {
+  static init(jstInit) {
+    jst = jstInit;
+    JstStyle.init(jstInit);
+  }
+
   constructor() {
     super();
     this.jstStyleLookup = {};
