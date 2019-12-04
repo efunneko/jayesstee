@@ -24,7 +24,7 @@ each argument type:
 | Datatype   | Description |
 | --------   | ----------- |
 | JstElement | These elements will simply be nested inside the parent element |
-| [JstObject](jst-object.md) | Will call object's render method and treat its result as an argument |
+| [JstComponent](jst-component.md) | Will call component's render method and treat its result as an argument |
 | HTMLElement| Wrap the element in a JstElement and then treat as a JstElement |
 | Object     | The properties of the object will be inherited by the JstElement and inserted as attributes into the HTMLElement |
 | Function   | The function will be called and the result used as input parameters, flattening as necessary |
@@ -53,14 +53,14 @@ jst.$div(
 ```
 
 
-### Passing in JstObject
+### Passing in JstComponent
 
-[JstObjects](jst-object.md) are used in the Object Oriented method of using jayesstee. These objects
-always contain a `render()` method that will be automatically called when a JstElement is passed a JstObject. The
-following example illustrates adding a JstObject to an element:
+[JstComponents](jst-component.md) are used in the Object Oriented method of using jayesstee. These components
+always contain a `render()` method that will be automatically called when a JstElement is passed a JstComponent. The
+following example illustrates adding a JstComponent to an element:
 
 ```javascript
-class MyDiv extends jst.Object {
+class MyDiv extends jst.Component {
   render() {
     return jst.$div("My Div");
   }
@@ -92,7 +92,7 @@ jst.$div({id: 'my-id'});
  |cn            |String    |Short form for "class" (i.e. *c*lass *n*ame). `jst.$div({cn: "my-class"})` results in `<div class="my-class"></div>` |
  |properties    |Array     |Takes an array of names that will be reflected into properties in the HTMLElement. `jst.$input({properties: ["checked"]})` yields `<input checked></input>` |
  |events        |Object    |Takes an Object whose properties are event names and values are event handler functions. `jst.$div({events: {click: e => this.handleClick(e)}})` will add an event handler on that div which will call this.handleClick |
- |ref           |String    |This property is only useful when using the OO mode of Jayesstee. It will take a reference name and set the containing JstObject's propery of that name to the JstElement being created. This can then be used to access the HTMLElement if necessary. Typically, using [JstForm](jst-form.md) is sufficient to get values on elements |
+ |ref           |String    |This property is only useful when using the OO mode of Jayesstee. It will take a reference name and set the containing JstComponent's propery of that name to the JstElement being created. This can then be used to access the HTMLElement if necessary. Typically, using [JstForm](jst-form.md) is sufficient to get values on elements |
  
  
  
@@ -108,25 +108,25 @@ is the same as:
 jst.$div(1, "hi", jst.$span("foo"), "a", "b", "c", {a: 1, b: 2})
 ```
 
-This can be useful when creating [JstObjects](jst-object.md). For example:
+This can be useful when creating [JstComponents](jst-component.md). For example:
 
 ```javascript
-class Cheese extends jst.Object {
+class Cheese extends jst.Component {
   render() {
     return jst.$div({cn: "cheese"});
   }
 }
-class Pepperoni extends jst.Object {
+class Pepperoni extends jst.Component {
   render() {
     return jst.$div({cn: "pepperoni"});
   }
 }
-class Mushroom extends jst.Object {
+class Mushroom extends jst.Component {
   render() {
     return jst.$div({cn: "mushroom"});
   }
 }
-class Pizza extends jst.Object {
+class Pizza extends jst.Component {
   constructor() {
     super();
     this.toppings = [];
@@ -149,7 +149,7 @@ class Pizza extends jst.Object {
 jst("body").appendChild(new Pizza());
 ```
 
-In the example above, the Pizza class just contains a bunch of other JstObjects (toppings) and
+In the example above, the Pizza class just contains a bunch of other JstComponents (toppings) and
 to render them it just has to provide the array.
 
 
