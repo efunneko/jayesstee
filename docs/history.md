@@ -91,7 +91,7 @@ let rows = [];
 for (let rowData of data) {
   let row = [];
   for (let cell of rowData) {
-    row.push($td(cell); // Passed in arrays are flattened
+    row.push($td(cell)); // Passed in arrays are flattened
   }
   rows.push($tr(row));
 }
