@@ -213,7 +213,6 @@ export class JstElement {
         // '-' or '--', add the scope to their values
         if (lastJstComponent && (attrName === "class" || attrName === "id") &&
             val.match && val.match(/(^|\s)-/)) {
-          console.warn("EDE Fixing class", val, lastJstComponent.getName(), lastJstComponent.getClassPrefix());
           val = val.replace(/(^|\s)(--?)/g,
                             (m, p1, p2) => p1 +
                             (p2 === "-" ? lastJstComponent.getClassPrefix() :
