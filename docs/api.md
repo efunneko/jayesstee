@@ -1,4 +1,4 @@
-! Jayesstee API Reference
+# Jayesstee API Reference
 
 
 This page documents all the jayesstee methods and datatypes provided by the 
@@ -8,14 +8,14 @@ _All statements and examples in this document assume that jayesstee was
 imported like `import {jst} from 'jayesstee'`_
 
 
-!! jst.(<selector>)
+## jst.(_selector_)
 
 This returns a [JstElement](types/jst-element.md) object representing the first 
 HTML element selected by the specified in the DOM. This can then be used to 
 replace its children or append other elements to it.
 
 
-!! jst.addCustomElements(_arrayOfTagNames_)
+## jst.addCustomElements(_arrayOfTagNames_)
 
 This will add additional element creation functions for non-standard elements.
 
@@ -34,11 +34,15 @@ jst.("body").appendChild(
  
 ```
  
-This would result is HTML of: <mytag><div>Hi there!</div></mytag>
+This would result is HTML of: 
+
+```html
+<mytag><div>Hi there!</div></mytag>
+```
 
 
 
-!! jst.addCssFunctions(_listOfCssFunctions_)
+## jst.addCssFunctions(_listOfCssFunctions_)
 
 Register additional css functions that will allow their use in CSS definitions.
 
@@ -70,7 +74,7 @@ This would simply replace jst.newfunc() with 'newfunc(1, 2)' in the CSS definiti
 
 
 
-!! jst.addCssUnits(_listOfCssUnits_)
+## jst.addCssUnits(_listOfCssUnits_)
 
 Register additional CSS units.
 
@@ -99,7 +103,7 @@ let myWidth = 10;
 
 This would yield a CSS definition of 'body { width: 10bar }'
 
-!! jst.makeGlobal(_optional-prefix_)
+## jst.makeGlobal(_optionalPrefix_)
 
 Promote the element creation functions to window/global scope. If the optional prefix
 is provided, then all element creation functions will be prefixed with that provided
@@ -126,15 +130,15 @@ let div3 = foo_div("Hi there! Still global with custom prefix");
 
 ```
 
-!! jst.if(_expression_, _resultIfTrue_, _resultIfFalse_)
+## jst.if(_expression_, _resultIfTrue_, _resultIfFalse_)
 
 This is a convenience routine for providing a custom truthy check. The provided expression
 is considered to be true or false based on the following checks:
 
   1. If _expression_ is a Number, then `true`
   2. If _expression_ is `undefined` or `null`, then `false`
-  3. If _expression_ is an Array, if length is 0, then `false`, otherwise `true`
-  4. If _expression_ is an Object, if zero keys, then `false`, otherwise `true`
+  3. If _expression_ is an Array and length is 0, then `false`, otherwise `true`
+  4. If _expression_ is an Object and has zero keys, then `false`, otherwise `true`
   5. Otherwise, let javascript evaluate the expression: val ? `true` : `false`
 
 If the expression is found to be `true`, then the _resultIfTrue_ is returned or, if not specified,
@@ -161,7 +165,7 @@ function getList(listOfItems) {
 ```
 
 
-!! jst.setDebug(_boolean_)
+## jst.setDebug(_boolean_)
 
 Turn on/off debug mode within jayesstee. When on, it will inject additional custom elements
 to more easily inspect the DOM.
