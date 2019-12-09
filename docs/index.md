@@ -86,7 +86,7 @@ See this in action on this [CodePen](https://codepen.io/efunneko/pen/oaaGzy)
 
 #### Object Oriented Method
 
-In the OO way of using jayesstee, classes are defined that inherit from [jst.Object](types/jst-object.md).
+In the OO way of using jayesstee, classes are defined that inherit from [jst.Component](types/jst-component.md).
 These classes must contain a `render` method to do the HTML generation and they
 can contain `cssGlobal`, `cssLocal` and `cssInstance` methods to define CSS rules
 for three levels of scoping.
