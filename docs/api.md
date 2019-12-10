@@ -24,7 +24,7 @@ specified type as requested by _elementName_. The parameters passed in will be
 contained by that created JstElement. For details how parameters are processed,
 please see the [JstElement page](types/jst-element.md).
 
-For example:
+#### Example
 
 ```javascript
 import jst from 'jayesstee';
@@ -57,7 +57,7 @@ but additional custom elements can be added with `jst.addCustomElements()`.
 
 This will add additional element creation functions for non-standard elements.
 
-For example:
+#### Example
 
 ```javascript
 import jst from 'jayesstee';
@@ -84,7 +84,7 @@ This would result is HTML of:
 
 Register additional css functions that will allow their use in CSS definitions.
 
-For example:
+#### Example
 
 ```javascript
 import jst from 'jayesstee';
@@ -116,7 +116,7 @@ This would simply replace jst.newfunc() with 'newfunc(1, 2)' in the CSS definiti
 
 Register additional CSS units.
 
-For example:
+#### Example
 
 ```javascript
 import jst from 'jayesstee';
@@ -149,7 +149,7 @@ prefix. By default, the prefix is '$'.
 
 If this is not called, then all element creation functions exist only within 
 
-For example:
+#### Example
 
 ```javascript
 import jst from 'jayesstee';
@@ -186,7 +186,7 @@ not specified, return `undefined`.
 The benefit of this is that it provides a much more useful check and returns a value that is
 more suitable for using as a parameter to a jst-element creation function.
 
-For example:
+#### Example
 
 ```javascript
 import jst from 'jayesstee';
@@ -213,4 +213,76 @@ to more easily inspect the DOM.
 ## Datatypes and Properties
 
 
+### jst.Component
+
+This is a reference to the [JstComponent](types/jst-component.md) class that must be extended
+when using jayesstee in its object oriented way. Custom components can be created by extending 
+this class, allowing for easy and efficient dynamic changes to the content of the page.
+
+
+#### Example
+
+```javascript
+import jst from 'jayesstee';
+
+class MyTable extends jst.Component {
+  constructor(opts, data) {
+    super();
+    this.opts = opts;
+    this.data = data;
+  }
+  
+  render() {
+    return jst.$table(
+      jst.$thead(
+        jst.$tr(
+          this.opts.headings.map(heading => jst.$th(heading.title))
+        )
+      ),
+      jst.$tbody(
+        this.data.map(row => jst.$tr(
+          this.opts.headings.map(heading => jst.$td(row[heading.id]))
+        ))
+      )
+    );
+  }
+}
+
+let tableOpts = {
+  headings: [
+    {title: "Client Name", id: "name"},
+    {title: "Age",         id: "age"}
+  ]
+};
+
+let tableData = [
+  {name: "Bob Smith",  age: "23"},
+  {name: "Liqin Wang", age: "30"},
+  {name: "Pierre To",  age: "15"}
+];
+
+let table = new MyTable(tableOpts, tableData);
+
+jst.("body").appendChild(table);
+
+```
+
+
+### jst.Element
+
+This is a reference to the [JstElement](types/jst-element.md) class. It is unlikely
+that this is necessary for any application purpose. It can be used to create custom
+JstElements without needing to add them with `jst.addCustomElements()`;
+
+#### Example
+
+
+```javascript
+import jst from 'jayesstee';
+
+let myCustom = new jst.Element("customElement", [jst.$div("Hi there!")]);
+
+```
+
+This would produce `<customElement><div>Hi there!</div><customElement>`.
 
