@@ -34,7 +34,7 @@ each argument type:
 | undefined  | Ignored - this is more important than you might think. In the OO mode, you can have optional params set to `undefined` and they will silently be skipped|
 | Other      | toString() called on it (if available) and placed in a textnode |
 
-### Passing in JstElement
+### Parameter Type: JstElement
 
 JstElements passed to other JstElements on creation will simply be nested within the new 
 JstElement. The folowing example shows many instances of JstElements inside of other JstElements.
@@ -53,7 +53,7 @@ jst.$div(
 ```
 
 
-### Passing in JstComponent
+### Parameter Type: JstComponent
 
 [JstComponents](jst-component.md) are used in the Object Oriented method of using jayesstee. These components
 always contain a `render()` method that will be automatically called when a JstElement is passed a JstComponent. The
@@ -73,11 +73,11 @@ let myDiv = new MyDiv();
 jst.$div(myDiv);
 ```
 
-### Passing in JstForm
+### Parameter Type: JstForm
 
 JstForms are explained in detail [here](jst-form.md)
 
-### Passing in a simple Object
+### Parameter Type: simple Object
 
 Basic anonymous objects can be used to set attributes on the resulting HTMLElement. For example:
 
@@ -97,7 +97,7 @@ jst.$div({id: 'my-id'});
  
  
 
-### Passing in an Array
+### Parameter Type: Array
 
 Any array passed into a JstElement creation function will be fully flattened and then treated as normal inputs for the JstElement. For example: 
 ```javascript
@@ -153,7 +153,7 @@ In the example above, the Pizza class just contains a bunch of other JstComponen
 to render them it just has to provide the array.
 
 
-### Passing in a String, Number or Boolean
+### Parameter Type: String, Number or Boolean
 
 Basic types, such as String, Number, Boolean or anything else that has a toString() method will just
 be converted to a string and inserted into the DOM as a textnode.
