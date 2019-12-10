@@ -263,7 +263,7 @@ let tableData = [
 
 let table = new MyTable(tableOpts, tableData);
 
-jst.("body").appendChild(table);
+jst("body").appendChild(table);
 
 ```
 
