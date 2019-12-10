@@ -8,14 +8,52 @@ _All statements and examples in this document assume that jayesstee was
 imported like `import {jst} from 'jayesstee'`_
 
 
-## jst.(_selector_)
+## Functions
+
+### jst.(_selector_)
 
 This returns a [JstElement](types/jst-element.md) object representing the first 
 HTML element selected by the specified in the DOM. This can then be used to 
 replace its children or append other elements to it.
 
 
-## jst.addCustomElements(_arrayOfTagNames_)
+### jst.$_elementName_(...)
+
+This set of functions will create a [JstElement](types/jst-element.md) of the
+specified type as requested by _elementName_. The parameters passed in will be
+contained by that created JstElement. For details how parameters are processed,
+please see the [JstElement page](types/jst-element.md).
+
+For example:
+
+```javascript
+import jst from 'jayesstee';
+
+let list = [
+  ["Name",   "Sam"],
+  ["Age",    10],
+  ["Height", 55]
+];
+
+let table = jst.$table(
+  jst.$thead(
+    jst.$tr(
+      jst.$th("Key"),
+      jst.$th("Value")
+    )
+  ),
+  jst.$tbody(
+    list.map(row => jst.$tr(row.map(item => jst.$td(item))))
+  )
+);
+```
+
+By default, all normal HTML elements are supported (e.g. `jst.$div()` or `jst.$span()`)
+but additional custom elements can be added with `jst.addCustomElements()`.
+
+
+
+### jst.addCustomElements(_arrayOfTagNames_)
 
 This will add additional element creation functions for non-standard elements.
 
@@ -42,7 +80,7 @@ This would result is HTML of:
 
 
 
-## jst.addCssFunctions(_listOfCssFunctions_)
+### jst.addCssFunctions(_listOfCssFunctions_)
 
 Register additional css functions that will allow their use in CSS definitions.
 
@@ -74,7 +112,7 @@ This would simply replace jst.newfunc() with 'newfunc(1, 2)' in the CSS definiti
 
 
 
-## jst.addCssUnits(_listOfCssUnits_)
+### jst.addCssUnits(_listOfCssUnits_)
 
 Register additional CSS units.
 
@@ -103,7 +141,7 @@ let myWidth = 10;
 
 This would yield a CSS definition of 'body { width: 10bar }'
 
-## jst.makeGlobal(_optionalPrefix_)
+### jst.makeGlobal(_optionalPrefix_)
 
 Promote the element creation functions to window/global scope. If the optional prefix
 is provided, then all element creation functions will be prefixed with that provided
@@ -130,7 +168,7 @@ let div3 = foo_div("Hi there! Still global with custom prefix");
 
 ```
 
-## jst.if(_expression_, _resultIfTrue_, _resultIfFalse_)
+### jst.if(_expression_, _resultIfTrue_, _resultIfFalse_)
 
 This is a convenience routine for providing a custom truthy check. The provided expression
 is considered to be true or false based on the following checks:
@@ -142,7 +180,7 @@ is considered to be true or false based on the following checks:
   5. Otherwise, let javascript evaluate the expression: val ? `true` : `false`
 
 If the expression is found to be `true`, then the _resultIfTrue_ is returned or, if not specified,
-then just return `true`. If the expression is found to be `false`, then return _resultIfFalse or if
+then just return `true`. If the expression is found to be `false`, then return _resultIfFalse_ or if
 not specified, return `undefined`.
 
 The benefit of this is that it provides a much more useful check and returns a value that is
@@ -165,8 +203,14 @@ function getList(listOfItems) {
 ```
 
 
-## jst.setDebug(_boolean_)
+### jst.setDebug(_boolean_)
 
 Turn on/off debug mode within jayesstee. When on, it will inject additional custom elements
 to more easily inspect the DOM.
+
+
+
+## Datatypes and Properties
+
+
 
