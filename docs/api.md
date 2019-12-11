@@ -13,7 +13,7 @@ imported like `import {jst} from 'jayesstee'`_
 ### jst.(_selector_)
 
 This returns a [JstElement](types/jst-element.md) object representing the first 
-HTML element selected by the specified in the DOM. This can then be used to 
+HTML element selected by the specified _selector_ in the DOM. This can then be used to 
 replace its children or append other elements to it.
 
 
