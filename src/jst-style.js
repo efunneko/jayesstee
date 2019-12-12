@@ -52,8 +52,18 @@ export class JstStyle extends JstComponent {
       type => {
         if (this.css && this.css[type]) {
           if (type === "cssInstance") {
-            return Object.values(this.css.cssInstance).map(
-              instance => instance.map(item => jst.$style(item)));
+            if (!Object.values) {
+            let styles = [];
+            for (let key in this.css.cssInstance) {
+              let instance = this.css.cssInstance[key];
+              styles.push(instance.map(item => jst.$style(item)));
+            }
+              return styles;
+            }
+            else {
+              return Object.values(this.css.cssInstance).map(
+                instance => instance.map(item => jst.$style(item)));
+            }
           }
           else {
             return this.css[type].map(item => {

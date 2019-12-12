@@ -125,13 +125,19 @@ class TextNode {
 class Document {
   constructor() {
     this.body = new HTMLElement("body");
+    this.head = new HTMLElement("head");
   }
 
   querySelector(selector) {
-    if (selector !== "body") {
-      throw("Can't select on anything other than 'body");
+    if (selector === "body") {
+      return this.body;
     }
-    return this.body;
+    else if (selector === "head") {
+      return this.head;
+    }
+    else {
+      throw("Can't select on anything other than body or head");
+    }
   }
 
   createElement(tag) {
@@ -149,5 +155,6 @@ class Document {
 // Add window functions
 global.document    = new Document();
 global.HTMLElement = HTMLElement;
+
 
 
