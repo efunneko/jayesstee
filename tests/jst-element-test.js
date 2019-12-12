@@ -50,7 +50,7 @@ test('Check input parameter handling', () => {
                       instance: {myClass$c: {width$cm: 5}}});
   jst("body").replaceChild(check);
   expect(document.body.html()).toMatch(/^<body><div><div class="jsto\d+-myClass jsto\d+-i\d-myClass">hi<\/div><\/div><\/body>$/);
-  expect(document.head.html()).toMatch(/^<head><style>\.jsto\d+-myClass {[\s\n\t]*height:\s*10px;[\n\s]*}[\n\s]*<\/style><\/head>$/);
+  expect(document.head.html()).toMatch(/^<head><style>\.jsto\d+-myClass {[\s\n\t]*height:\s*10px;[\n\s]*}[\n\s]*<\/style><style>\.jsto\d+-i\d+-myClass {[\s\n\t]*width:\s*5cm;[\n\s]*}[\n\s]*<\/style><\/head>$/);
   
 });
 
