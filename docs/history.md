@@ -148,7 +148,7 @@ let table = $table(
 
 I wasn't really that happy with either of these two options. I have now settled on adding a special 'if' call that 
 takes an expression and two options. It does a speciallized truthy check on the expression and returns the first option
-if true and the second option if false.  
+if true and the second option if false. 
 This is an area that feels like it needs refinement. Here is an example with actually using the library. Like
 the last example, it will skip some rows, but this time it will output "n/a" if the data in the array is undefined.
 
@@ -171,10 +171,30 @@ let table = jst.$table(
 ```
 
 Some of you who care about performance might complain that the jst.if() call will result
-in both options being evaluated in order to pass in their values. That is the cost of doing it this way. You can
-instead revert to the earlier example with the tertiary operator or you can use the jst.if() call the following way.
-jst.if() has different rules for 'truthiness', like empty arrays are considered false. With only one parameter it
-will return `true` for 'true' and `undefined` for 'false'. I care about performance in general, so I usually do it this way.
+in both options being evaluated in order to pass in their values. That is true for the
+example above, but you can pass in functions to avoid this. In the example below, the
+`true` case for the outer jst.if is passed as a function, so it won't be evaluated unless
+it is actually selected. 
+
+```javascript
+import {jst} from "jayesstee";
+
+let data = [
+  [1,undefined,3],
+  [4,5,undefined],
+  [7,8,9]
+];
+
+let table = jst.$table(
+  data.map(row => jst.if(row[0] <= 5, 
+                         () => jst.$tr(row.map(cell => jst.$td(jst.if(cell, cell, "n/a"))), // if true
+                         undefined // if false, but unnecessary to pass in undefined
+                        )
+          )
+)
+```
+
+Finally, you can always use boolean logic as well to be most efficient, as show below.
 
 ```javascript
 import {jst} from "jayesstee";

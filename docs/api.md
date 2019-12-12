@@ -168,7 +168,7 @@ let div3 = foo_div("Hi there! Still global with custom prefix");
 
 ```
 
-### jst.if(_expression_, _resultIfTrue_, _resultIfFalse_)
+### jst.if(_expression_, _ifTrueFunc_, _ifFalseFunc_)
 
 This is a convenience routine for providing a custom truthy check. The provided expression
 is considered to be true or false based on the following checks:
@@ -179,9 +179,14 @@ is considered to be true or false based on the following checks:
   4. If _expression_ is an Object and has zero keys, then `false`, otherwise `true`
   5. Otherwise, let javascript evaluate the expression: val ? `true` : `false`
 
-If the expression is found to be `true`, then the _resultIfTrue_ is returned or, if not specified,
-then just return `true`. If the expression is found to be `false`, then return _resultIfFalse_ or if
-not specified, return `undefined`.
+The returned value depends on the passed in _ifTrueFunc_ and _ifFalseFunc_. If the logic
+above determines that the expresssion is `true`, then _ifTrueFunc_ is used, otherwise _ifFalseFunc_
+is used.
+
+The returned value depends on what was passed in for the _if{True|False}Func_. If it is a 
+function, then it will be called and the result is returned. If it is undefined, then `true` will be 
+returned for a true expression and `undefined` for a false expression. If it is not undefined
+and not a function, then its value will simply be returned.
 
 The benefit of this is that it provides a much more useful check and returns a value that is
 more suitable for using as a parameter to a jst-element creation function.
@@ -191,7 +196,21 @@ more suitable for using as a parameter to a jst-element creation function.
 ```javascript
 import jst from 'jayesstee';
 
-function getList(listOfItems) {
+// Three different ways this can be used:
+
+// Passing in functions for ifTrue and ifFalse
+function getList1(listOfItems) {
+  return jst.if(listOfItems,
+           () => jst.$ul(
+             listOfItems.map(item => jst.$li(item))
+           ),
+           () => jst.$div("No items to display")
+  );
+}
+
+// Passing in values for ifTrue and ifFalse, looks cleaner
+// but less efficient
+function getList2(listOfItems) {
   return jst.if(listOfItems,
            jst.$ul(
              listOfItems.map(item => jst.$li(item))
@@ -199,6 +218,20 @@ function getList(listOfItems) {
            jst.$div("No items to display")
   );
 }
+
+// Using Boolean logic - probably most efficient, but
+// least readable
+function getList3(listOfItems) {
+  return jst.if(listOfItems)
+           // True
+           && jst.$ul(
+             listOfItems.map(item => jst.$li(item))
+           )
+           // False
+           || jst.$div("No items to display")
+  );
+}
+
 
 ```
 
@@ -285,4 +318,102 @@ let myCustom = new jst.Element("customElement", [jst.$div("Hi there!")]);
 ```
 
 This would produce `<customElement><div>Hi there!</div><customElement>`.
+
+
+
+## JstElement Methods
+
+### _jstEl_.appendChild(_args_)
+
+**Parameters**
+
+ * _args_ - List of elements, objects, text to append to the element. The arguments are
+            handled in the same way as when creating a new JstElement as described in
+            [this page](types/jst-element.md).
+
+
+Append the specified content into the element.
+
+
+#### Example
+
+
+```javascript
+import jst from 'jayesstee';
+
+let div = jst.$div("Hi");
+
+// Put the div into the DOM
+jst("body").appendChild(div);
+
+// Put another div inside the first one
+div.appendChild(jst.$div("nested"));
+
+
+```
+
+This will produce `<body><div>Hi<div>nested</div></div></body>`.
+
+
+### _jstEl_.replaceChild(_args_)
+
+**Parameters**
+
+ * _args_ - List of elements, objects, text to append to the element. The arguments are
+            handled in the same way as when creating a new JstElement as described in
+            [this page](types/jst-element.md).
+
+
+Replace all children in the element with the specified content.
+
+
+#### Example
+
+
+```javascript
+import jst from 'jayesstee';
+
+let div = jst.$div("Hi");
+
+// Put the div into the DOM
+jst("body").appendChild(div);
+
+// Put another div inside the first one
+div.replaceChild(jst.$div("not nested"));
+
+
+```
+
+This will produce `<body><div>not nested</div></body>`.
+
+
+### _jstEl_.html(opts)
+
+**Parameters**
+
+ * _opts_.indent - boolean if set to true, pretty print the output with appropriate indentation
+
+
+Output the HTML for the JstElement, including all contained elements within it.
+
+#### Example
+
+
+```javascript
+import jst from 'jayesstee';
+
+let list = jst.$ul(
+  jst.$li("one"),
+  jst.$li("two"),
+  jst.$li("three")
+);
+
+let html = list.html();
+
+```
+
+This will produce `<ul><li>one</li><li>two</li><li>three</li></ul>`.
+
+
+## JstComponent Methods
 

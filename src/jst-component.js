@@ -117,13 +117,13 @@ export class JstComponent {
     
   }
 
-  html() {
+  html(opts) {
     if (this._jstEl) {
-      return this._jstEl.html();
+      return this._jstEl.html(opts);
     }
     else {
       this.refresh({isParentUpdate: true});
-      return this._jstEl.html();
+      return this._jstEl.html(opts);
     }
   }
 
