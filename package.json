@@ -1,6 +1,6 @@
 {
   "name": "jayesstee",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "license": "MIT",
   "description": "Pure javascript templating",
   "module": "src/jayesstee.js",
