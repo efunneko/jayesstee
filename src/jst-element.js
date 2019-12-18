@@ -183,7 +183,16 @@ export class JstElement {
       console.error("Trying to DOM a deleted element", this);
       return undefined;
     }
-    let el = this.el || document.createElement(this.tag);
+    let el = this.el;
+
+    if (!el) {
+      if (this.ns) {
+        el = document.createElementNS(this.ns, this.tag);
+      }
+      else {
+        el = document.createElement(this.tag);
+      }
+    }
 
     // If the element parameters contains a 'ref' attribute, then fill it in
     if (this.ref && lastJstComponent) {
@@ -191,7 +200,7 @@ export class JstElement {
     }
 
     // Handle forms
-    if (lastJstComponent && this.tag === "form" && (this.attrs.name || this.attrs.id)) {
+    if (lastJstComponent && this.tag === "form" && (this.attrs.name || this.attrs.ref || this.attrs.id)) {
       lastJstForm = lastJstComponent.addForm(this);
     }
     else if (lastJstForm &&

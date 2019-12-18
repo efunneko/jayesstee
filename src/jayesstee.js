@@ -81,7 +81,9 @@ jst.extend({
     'menu', 'meta', 'meter', 'nav', 'noscript', 'object', 'ol', 'optgroup', 'option',
     'output', 'p', 'param', 'pre', 'progress', 'q', 'rp', 'rt', 'ruby', 's',
     'samp', 'script', 'section', 'select', 'small', 'source', 'span', 'strong',
-    'style', 'sub', 'summary', 'sup', 'svg', 'table', 'tbody', 'td', 'textarea',
+    'style', 'sub', 'summary', 'sup'
+  ],
+  svgTags: ['svg', 'table', 'tbody', 'td', 'textarea',
     'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul', 'var',
     'video', 'wbr','altGlyph','altGlyphDef','altGlyphItem','animate','animateColor','animateMotion',
     'animateTransform','circle','clipPath','color-profile','cursor','defs','desc','discard',
@@ -125,6 +127,18 @@ jst.extend({
     }
   },
 
+  addCustomElementsNS: function(names, ns) {
+    for (let name of names) {
+      let fullName = jst.tagPrefix + name;
+      jst[fullName] = function() {
+        let args = utils._flatten.apply(this, arguments);
+        let jstEl = new JstElement(name, args);
+        jstEl.ns  = ns;
+        return jstEl.ns;
+      };
+    }
+  },
+
   addCssFunctions: function() {
     let names = utils._flatten.apply(this, arguments);
     for (let name of names) {
@@ -161,7 +175,7 @@ jst.extend({
   makeGlobal: function(prefix) {
     jst.global          = true;
     jst.globalTagPrefix = prefix || jst.tagPrefix;
-    for (let tag of jst.tags) {
+    for (let tag of jst.tags.concat(jst.svgTags)) {
       let name = jst.globalTagPrefix + tag;
       let g = typeof global !== 'undefined' ? global : window;
       g[name] = function() {
@@ -224,6 +238,7 @@ jst.extend({
     JstComponent.init(jst);
     JstStyleManager.init(jst);
     jst.addCustomElements(jst.tags);
+    jst.addCustomElements(jst.svgTags, "http://www.w3.org/2000/svg");
     jst.addCssFunctions(jst.cssFuncs);
     jst.addCssUnits(jst.cssUnits);
     jst.styleManager = new JstStyleManager();

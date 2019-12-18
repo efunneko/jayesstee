@@ -51,6 +51,15 @@ test('Check input parameter handling', () => {
   jst("body").replaceChild(check);
   expect(document.body.html()).toMatch(/^<body><div><div class="jsto\d+-myClass jsto\d+-i\d-myClass">hi<\/div><\/div><\/body>$/);
   expect(document.head.html()).toMatch(/^<head><style>\.jsto\d+-myClass {[\s\n\t]*height:\s*10px;[\n\s]*}[\n\s]*<\/style><style>\.jsto\d+-i\d+-myClass {[\s\n\t]*width:\s*5cm;[\n\s]*}[\n\s]*<\/style><\/head>$/);
+
+  check = new CssObj(jst.$div({cn: "-myClass --myClass"}, "hi2"));
+  jst("body").appendChild(check);
+  expect(document.body.html()).toMatch(/^<body><div><div class="jsto\d+-myClass jsto\d+-i\d-myClass">hi<\/div><\/div><div><div class="jsto\d+-myClass jsto\d+-i\d-myClass">hi2<\/div><\/div><\/body>$/);
+  expect(document.head.html()).toMatch(/^<head><style>\.jsto\d+-myClass {[\s\n\t]*height:\s*10px;[\n\s]*}[\n\s]*<\/style><style>\.jsto\d+-i\d+-myClass {[\s\n\t]*width:\s*5cm;[\n\s]*}[\n\s]*<\/style><style>\.jsto\d+-i\d+-myClass {[\s\n\t]*width:\s*5cm;[\n\s]*}[\n\s]*<\/style><\/head>$/);
+  
+  jst.styleManager._removeAll();
+  expect(document.head.html()).toMatch(/^<head><\/head>$/);
+
   
 });
 
@@ -63,13 +72,13 @@ class CssObj extends jst.Component {
 
     if (css) {
       if (css.global) {
-        this.cssGlobal = () => this.css.global;
+        CssObj.prototype.cssGlobal = () => this.css.global;
       }
       if (css.local) {
-        this.cssLocal = () => this.css.local;
+        CssObj.prototype.cssLocal = () => this.css.local;
       }
       if (css.instance) {
-        this.cssInstance = () => this.css.instance;
+        CssObj.prototype.cssInstance = () => this.css.instance;
       }
     }
     

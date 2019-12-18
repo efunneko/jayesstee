@@ -242,6 +242,10 @@ export class JstComponent {
     else {
       this._forms[name] = new JstFormManager(jstElement);
     }
+    if (jstElement.attrs.ref) {
+      this[jstElement.attrs.ref] = this._forms[name];
+    }
+    
     return this._forms[name];
   }
 

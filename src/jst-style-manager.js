@@ -86,6 +86,13 @@ export class JstStyleManager extends JstComponent {
     this.refresh();
   }
 
+  // Used for test - just remove all styles
+  _removeAll() {
+    this.jstStyles      = [];
+    this.jstStyleLookup = {};
+    this.refresh();
+  }
+
 }
 
 
