@@ -144,6 +144,10 @@ class Document {
     return new HTMLElement(tag);
   }
 
+  createElementNS(ns, tag) {
+    return new HTMLElement(tag);
+  }
+
   createTextNode(text) {
     return new TextNode(text);
   }

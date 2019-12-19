@@ -81,11 +81,11 @@ jst.extend({
     'menu', 'meta', 'meter', 'nav', 'noscript', 'object', 'ol', 'optgroup', 'option',
     'output', 'p', 'param', 'pre', 'progress', 'q', 'rp', 'rt', 'ruby', 's',
     'samp', 'script', 'section', 'select', 'small', 'source', 'span', 'strong',
-    'style', 'sub', 'summary', 'sup'
-  ],
-  svgTags: ['svg', 'table', 'tbody', 'td', 'textarea',
+    'style', 'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'textarea',
     'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul', 'var',
-    'video', 'wbr','altGlyph','altGlyphDef','altGlyphItem','animate','animateColor','animateMotion',
+    'video', 'wbr'
+  ],
+  svgTags: ['altGlyph','altGlyphDef','altGlyphItem','animate','animateColor','animateMotion',
     'animateTransform','circle','clipPath','color-profile','cursor','defs','desc','discard',
     'ellipse','feBlend','feColorMatrix','feComponentTransfer','feComposite','feConvolveMatrix',
     'feDiffuseLighting','feDisplacementMap','feDistantLight','feDropShadow','feFlood','feFuncA',
@@ -94,8 +94,8 @@ jst.extend({
     'font','font-face','font-face-format','font-face-name','font-face-src','font-face-uri',
     'foreignObject','g','glyph','glyphRef','hatch','hatchpath','hkern','image','line',
     'linearGradient','marker','mask','mesh','meshgradient','meshpatch','meshrow','metadata',
-    'missing-glyph','mpath','path','pattern','polygon','polyline','radialGradient','rect','script',
-    'set','solidcolor','stop','style','svg','switch','symbol','text','textPath','title','tref',
+    'missing-glyph','mpath','path','pattern','polygon','polyline','radialGradient','rect',
+    'set','solidcolor','stop','svg','switch','symbol','text','textPath','tref',
     'tspan','unknown','use','view','vkern'
   ],
   cssFuncs: [
@@ -134,7 +134,7 @@ jst.extend({
         let args = utils._flatten.apply(this, arguments);
         let jstEl = new JstElement(name, args);
         jstEl.ns  = ns;
-        return jstEl.ns;
+        return jstEl;
       };
     }
   },
@@ -238,7 +238,7 @@ jst.extend({
     JstComponent.init(jst);
     JstStyleManager.init(jst);
     jst.addCustomElements(jst.tags);
-    jst.addCustomElements(jst.svgTags, "http://www.w3.org/2000/svg");
+    jst.addCustomElementsNS(jst.svgTags, "http://www.w3.org/2000/svg");
     jst.addCssFunctions(jst.cssFuncs);
     jst.addCssUnits(jst.cssUnits);
     jst.styleManager = new JstStyleManager();
