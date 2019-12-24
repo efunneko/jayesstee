@@ -563,4 +563,4 @@ So this is the history of my explorations to this point. The library works for m
 as either an inspiration to generating HTML from javascript or as the library itself. I would love to hear from anyone
 reading this as to their thoughts.
 
-Obligatory XKCD:  [927](https://xkcd.com/927/)
+Obligatory xkcd:  [927](https://xkcd.com/927/)
