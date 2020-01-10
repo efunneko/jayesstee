@@ -4,6 +4,7 @@
 [Getting Started](getting-started.md)  
 [User Guide](user-guide.md)  
 [API](api.md)
+[Samples](samples.md)
 
 
 ## Overview
