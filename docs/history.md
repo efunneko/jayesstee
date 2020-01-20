@@ -162,7 +162,7 @@ let data = [
 ];
 
 let table = jst.$table(
-  data.map(row => jst.if(row[0] <= 5, 
+  data.map(row => jst.if(row[0] <= 3, 
                          jst.$tr(row.map(cell => jst.$td(jst.if(cell, cell, "n/a"))), // if true
                          undefined // if false, but unnecessary to pass in undefined
                         )
@@ -186,7 +186,7 @@ let data = [
 ];
 
 let table = jst.$table(
-  data.map(row => jst.if(row[0] <= 5, 
+  data.map(row => jst.if(row[0] <= 4, 
                          () => jst.$tr(row.map(cell => jst.$td(jst.if(cell, cell, "n/a"))), // if true
                          undefined // if false, but unnecessary to pass in undefined
                         )
@@ -206,9 +206,9 @@ let data = [
 ];
 
 let table = jst.$table(
-  data.map(row => jst.if(row[0] <= 5) && // jst.if returns true or undefined based on the expression
-                    jst.$tr(row.map(cell => jst.$td(jst.if(cell, cell, "n/a"))))
-          )
+  data.map(row => 
+    (row[0] <= 4) && jst.$tr(row.map(cell => jst.$td(cell || "n/a")))
+  )
 )
 ```
 
