@@ -323,6 +323,9 @@ This would produce `<customElement><div>Hi there!</div><customElement>`.
 
 ## JstElement Methods
 
+Note that there is more documentation for JstElements and creating them on the 
+(JstElement page)[types/jst-element.md].
+
 ### _jstEl_.appendChild(_args_)
 
 **Parameters**
@@ -416,4 +419,13 @@ This will produce `<ul><li>one</li><li>two</li><li>three</li></ul>`.
 
 
 ## JstComponent Methods
+
+Note that there are a number of methods that inheriting classes must implement. These
+are described in the [JstComponent page](types/jst-component.md).
+
+### _jstComponent_.refresh()
+
+This method will rerender itself. If it is already instantiated in the DOM, then the 
+DOM will be changed in the least invasive way possible. If the component provides CSS,
+then that will also be updated in the DOM.
 

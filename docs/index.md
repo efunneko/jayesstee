@@ -1,9 +1,10 @@
 # Jayesstee - Javascript Templating (JST)
 
-[Motivation and History](history.md)  
+[Motivation and History (start here)](history.md)  
 [Getting Started](getting-started.md)  
 [User Guide](user-guide.md)  
-[API](api.md)
+[API](api.md)  
+[Samples](samples.md)
 
 
 ## Overview

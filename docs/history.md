@@ -162,7 +162,7 @@ let data = [
 ];
 
 let table = jst.$table(
-  data.map(row => jst.if(row[0] <= 5, 
+  data.map(row => jst.if(row[0] <= 3, 
                          jst.$tr(row.map(cell => jst.$td(jst.if(cell, cell, "n/a"))), // if true
                          undefined // if false, but unnecessary to pass in undefined
                         )
@@ -186,7 +186,7 @@ let data = [
 ];
 
 let table = jst.$table(
-  data.map(row => jst.if(row[0] <= 5, 
+  data.map(row => jst.if(row[0] <= 4, 
                          () => jst.$tr(row.map(cell => jst.$td(jst.if(cell, cell, "n/a"))), // if true
                          undefined // if false, but unnecessary to pass in undefined
                         )
@@ -206,9 +206,9 @@ let data = [
 ];
 
 let table = jst.$table(
-  data.map(row => jst.if(row[0] <= 5) && // jst.if returns true or undefined based on the expression
-                    jst.$tr(row.map(cell => jst.$td(jst.if(cell, cell, "n/a"))))
-          )
+  data.map(row => 
+    (row[0] <= 4) && jst.$tr(row.map(cell => jst.$td(cell || "n/a")))
+  )
 )
 ```
 
@@ -563,4 +563,4 @@ So this is the history of my explorations to this point. The library works for m
 as either an inspiration to generating HTML from javascript or as the library itself. I would love to hear from anyone
 reading this as to their thoughts.
 
-Obligatory XKCD:  [927](https://xkcd.com/927/)
+Obligatory xkcd:  [927](https://xkcd.com/927/)
