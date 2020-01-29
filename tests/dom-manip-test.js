@@ -291,9 +291,23 @@ class TestListReorderObjects extends jst.Object {
     received = document.body.html();
     expect(received).toBe(expected);
 
-    // Reverse the items and make sure they are correct
+    // Remove all
+    let old = this.divs;
+    this.divs = [];
+
+    // Must refresh
+    this.refresh();
+    
+    expected = `<body><div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
+    
+    // Put back, but in reverse
     let reverse = [];
-    this.divs.forEach(item => reverse.unshift(item));
+    old.forEach(item => reverse.unshift(item));
     this.divs = reverse;
 
     // Must refresh
@@ -306,10 +320,25 @@ class TestListReorderObjects extends jst.Object {
     received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
     
+    // Swap two items and make sure they are correct
+    let tmp   = this.divs[3];
+    this.divs[3] = this.divs[1];
+    this.divs[1] = tmp;
+
+    // Must refresh
+    this.refresh();
+    
+    expected = `<body><div><div>10</div><div>2</div><div>8</div><div>9</div><div>1</div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
+    
     // Remove one from the start
     this.divs.shift();
     this.refresh();
-    expected = `<body><div><div>9</div><div>8</div><div>2</div><div>1</div></div></body>`;
+    expected = `<body><div><div>2</div><div>8</div><div>9</div><div>1</div></div></body>`;
     received = document.body.html();
     expect(received).toBe(expected);
     
@@ -319,34 +348,33 @@ class TestListReorderObjects extends jst.Object {
     // Remove one from the end
     this.divs.pop();
     this.refresh();
-    expected = `<body><div><div>9</div><div>8</div><div>2</div></div></body>`;
+    expected = `<body><div><div>2</div><div>8</div><div>9</div></div></body>`;
     received = document.body.html();
     expect(received).toBe(expected);
     
+    received = "<body>" + this.html() + "</body>";
+    expect(received).toBe(expected);
+    
+    // Add a new object
+    this.divs.splice(1, 0, new SimpleObj("new"));
+    this.refresh();
+    expected = `<body><div><div>2</div><div>new</div><div>8</div><div>9</div></div></body>`;
+    received = document.body.html();
+    expect(received).toBe(expected);
+
     received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
     
     // Remove one from the middle
-    this.divs.splice(1, 1);
+    this.divs.splice(2, 1);
     this.refresh();
-    expected = `<body><div><div>9</div><div>2</div></div></body>`;
+    expected = `<body><div><div>2</div><div>new</div><div>9</div></div></body>`;
     received = document.body.html();
     expect(received).toBe(expected);
 
     received = "<body>" + this.html() + "</body>";
     expect(received).toBe(expected);
-    
 
-    // Add a new object
-    this.divs.splice(1, 0, new SimpleObj("new"));
-    this.refresh();
-    expected = `<body><div><div>9</div><div>new</div><div>2</div></div></body>`;
-    received = document.body.html();
-    expect(received).toBe(expected);
-
-    received = "<body>" + this.html() + "</body>";
-    expect(received).toBe(expected);
-    
     // Put another layer of divs around the numbers
     this.divs.pop();
     this.refresh();
@@ -355,7 +383,7 @@ class TestListReorderObjects extends jst.Object {
     this.divs = this.divs.map(item => new SimpleObj(item));
     this.refresh();
     
-    expected = `<body><div><div><div>9</div></div><div><div>new</div></div></div></body>`;
+    expected = `<body><div><div><div>2</div></div><div><div>new</div></div></div></body>`;
     received = document.body.html();
     expect(received).toBe(expected);
 
@@ -366,7 +394,7 @@ class TestListReorderObjects extends jst.Object {
     this.divs = oldDivs;
     this.refresh();
     
-    expected = `<body><div><div>9</div><div>new</div></div></body>`;
+    expected = `<body><div><div>2</div><div>new</div></div></body>`;
     received = document.body.html();
     expect(received).toBe(expected);
 

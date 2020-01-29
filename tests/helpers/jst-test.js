@@ -23,6 +23,15 @@ class HTMLElement {
     this._data.contents = [];
   }
 
+  set textContent(val) {
+    if (!val || val === "") {
+      this._data.contents = [];
+    }
+    else {
+      throw "Unsupported request to set textContent to a value";
+    }
+  }
+
   addEventListener(name, callback) {
     this._data.events[name] = callback;
   }
@@ -48,6 +57,7 @@ class HTMLElement {
 
   insertBefore(node, el) {
     let updated = [];
+    
     this._data.contents.forEach(item => {
       if (item === el) {
         updated.push(node);

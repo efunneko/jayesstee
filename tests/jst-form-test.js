@@ -15,7 +15,6 @@ test('Check basic forms', () => {
   form.setFormVal("checkbox", "checked");
   
   let vals = form.myForm.getValues();
-  console.log("vals:", vals);
 
 
 });

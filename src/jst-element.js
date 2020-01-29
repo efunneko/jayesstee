@@ -325,8 +325,10 @@ export class JstElement {
   // the DOM 
   // Returns true if upper layer needs to copy new Jst. False otherwise
   _compareAndCopy(newJst, topNode, jstComponent, forceUpdate, level) {
-    let oldIndex = 0;
-    let newIndex = 0;
+    let oldIndex        = 0;
+    let newIndex        = 0;
+    let itemsToDelete   = [];
+    let indicesToRemove = [];
 
     // console.log("CAC>" + " ".repeat(level*2), this.tag + this.id, newJst.tag+newJst.id);
 
@@ -443,6 +445,21 @@ export class JstElement {
     }
 
     if (!forceUpdate && !this.opts.forceUpdate) {
+      // First a shortcut in the case where all
+      // contents are removed
+
+      // TODO - can clear the DOM in one action, but
+      // need to take care of the components so that they
+      // aren't still thinking they are in the DOM
+      // if (this.contents.length && !newJst.contents.length) {
+      //   if (this.el) {
+      //     this.el.textContent = "";
+      //     //this.contents = [];
+      //     //return false;
+      //   }
+      // }
+      
+      
       // Loop through the contents of this element and compare
       // to the contents of the newly created element
       while (true) {
@@ -482,9 +499,51 @@ export class JstElement {
         }
         else if (oldItem.type === JstElementType.JST_COMPONENT) {
           // If the tags are the same, then we must descend and compare
-          if (oldItem.value._jstId != newItem.value._jstId) {
-            // Different JstComponents
-            break;
+          if (oldItem.value._jstId !== newItem.value._jstId) {
+
+            // Small optimization since often a list is modified with a
+            // single add or remove
+
+            let nextOldItem = this.contents[oldIndex+1];
+            let nextNewItem = newJst.contents[newIndex+1];
+
+            if (!nextOldItem || !nextNewItem) {
+              // no value of optimizing when we are at the end of the list
+              break;
+            }
+
+            if (nextNewItem.type === JstElementType.JST_COMPONENT &&
+                oldItem.value._jstId === nextNewItem.value._jstId) {
+              // We have added a single item - TBD
+              let nextEl = oldItem.value._jstEl._getFirstEl();
+              this._moveOrRenderInDom(newItem, jstComponent, nextEl);
+              this.contents.splice(oldIndex, 0, newItem);
+              newIndex++;
+              oldIndex++;
+              newItem = nextNewItem;
+            }
+            else if (nextOldItem.type === JstElementType.JST_COMPONENT &&
+                     nextOldItem.value._jstId === newItem.value._jstId) {
+              // We have deleted a single item
+              this.contents.splice(oldIndex, 1);
+              itemsToDelete.push(oldItem);
+            }
+            else if (nextOldItem.type === JstElementType.JST_COMPONENT &&
+                     nextNewItem.type === JstElementType.JST_COMPONENT &&
+                     nextOldItem.value._jstId === nextNewItem.value._jstId) {
+              // We have swapped in an item
+              let nextEl = nextOldItem.value._jstEl._getFirstEl();
+              this._moveOrRenderInDom(newItem, jstComponent, nextEl);
+              this.contents[oldIndex] = newItem;
+              oldIndex++;
+              newIndex++;
+              newItem = nextNewItem;
+              itemsToDelete.push(oldItem);
+            }
+            else {
+              break;
+            }
+
           }
 
           // Don't bother descending into JstComponents - they take care of themselves
@@ -515,7 +574,6 @@ export class JstElement {
     // Need to copy stuff - first delete all the old contents
     let oldStartIndex = oldIndex;
     let oldItem       = this.contents[oldIndex];
-    let itemsToDelete = [];
 
     while (oldItem) {
       // console.log("CAC>  " + " ".repeat(level*2), "deleting old item :", oldItem.value.tag, oldItem.value.id);
@@ -557,51 +615,7 @@ export class JstElement {
           }
         }
         else if (item.type === JstElementType.JST_COMPONENT) {
-          if (item.value._jstEl.el) {
-            if (item.value._jstEl.el.parentNode) {
-              item.value._jstEl.el.parentNode.removeChild(item.value._jstEl.el);
-              if (this.el) {
-                this.el.appendChild(item.value._jstEl.el);
-              }
-            }
-          }
-          else {
-            // Need to visit all the items for this component and hook them in
-            item.value._jstEl._visitContents(
-              item.value,
-              // Called per JstElement
-              (subJstComponent, subItem) => {
-                if (subItem.value) {
-                  if (subItem.value.el) {
-                    if (subItem.value.el.parentNode) {
-                      subItem.value.el.parentNode.removeChild(subItem.value.el);
-                      if (this.el) {
-                        this.el.appendChild(subItem.value.el);
-                      }
-                      else if (jstComponent.parentEl) {
-                        jstComponent.parentEl.appendChild(subItem.value.el);
-                      }
-                    }
-                  }
-                  else if (this.el) {
-                    // Need to add it to the DOM
-                    // TODO - this would break the form functionality
-                    this.el.appendChild(subItem.value.dom(subJstComponent));
-                  }
-                  else if (jstComponent.parentEl) {
-                    jstComponent.parentEl.appendChild(subItem.value.dom(subJstComponent));
-                  }
-                }
-              },
-              // Called per JstComponent
-              subJstComponent => {
-                subJstComponent.parentEl = this.el || jstComponent.parentEl;
-              }
-            );
-
-            // And adjust this component's parentEl
-            item.value.parentEl = this.el || jstComponent.parentEl;
-          }  
+          this._moveOrRenderInDom(item, jstComponent);
         }
       });
       this.contents.splice(oldStartIndex, 0, ...newItems);
@@ -616,6 +630,72 @@ export class JstElement {
     
   }
 
+  _moveOrRenderInDom(item, jstComponent, beforeEl) {
+    if (item.value._jstEl.el) {
+      if (item.value._jstEl.el.parentNode) {
+        item.value._jstEl.el.parentNode.removeChild(item.value._jstEl.el);
+        if (this.el) {
+          this._addChildNode(this.el, item.value._jstEl.el, beforeEl);
+        }
+      }
+    }
+    else {
+      // Need to visit all the items for this component and hook them in
+      item.value._jstEl._visitContents(
+        item.value,
+        // Called per JstElement
+        (subJstComponent, subItem) => {
+          if (subItem.value) {
+            if (subItem.value.el) {
+              if (subItem.value.el.parentNode) {
+                subItem.value.el.parentNode.removeChild(subItem.value.el);
+                if (this.el) {
+                  this._addChildNode(this.el, subItem.value.el, beforeEl);
+                }
+                else if (jstComponent.parentEl) {
+                  this._addChildNode(jstComponent.parentEl, subItem.value.el, beforeEl);
+                }
+              }
+            }
+            else if (this.el) {
+              // Need to add it to the DOM
+              this._addChildNode(this.el, subItem.value.dom(subJstComponent), beforeEl);
+            }
+            else if (jstComponent.parentEl) {
+              this._addChildNode(jstComponent.parentEl, subItem.value.dom(subJstComponent), beforeEl);
+            }
+          }
+        },
+        // Called per JstComponent
+        subJstComponent => {
+          subJstComponent.parentEl = this.el || jstComponent.parentEl;
+        }
+      );
+
+      // And adjust this component's parentEl
+      item.value.parentEl = this.el || jstComponent.parentEl;
+    }  
+  }
+
+  _getFirstEl() {
+    let firstContents = this.contents[0];
+
+    if (firstContents.type === JstElementType.JST_COMPONENT) {
+      return firstContents.value._jstEl._getFirstEl();
+    }
+
+    return firstContents.value && firstContents.value.el;
+  }
+
+  _addChildNode(parent, node, beforeNode) {
+    if (beforeNode) {
+      parent.insertBefore(node, beforeNode);
+    }
+    else {
+      parent.appendChild(node);
+    }
+  }
+  
   _deleteItem(contentsItem) {
     if (contentsItem.type === JstElementType.JST_ELEMENT) {
       contentsItem.value.delete();
