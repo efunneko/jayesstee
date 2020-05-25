@@ -101,7 +101,7 @@ class Input extends jst.Object {
         input$c: {
           marginLeft$px: 12
         },
-        '.input input': {
+        inputBox$c: {
           padding$px: 2
         },
 
@@ -130,8 +130,9 @@ class Input extends jst.Object {
           position: "absolute",
           padding$px: 0,
           fontSize: '70%',
-          backgroundColor: "#eee",
-          
+          backgroundColor: "#ddd",
+          zIndex: 10,
+          opacity: 0.96
         },
 
         completionItem$c: {
@@ -178,6 +179,7 @@ class Input extends jst.Object {
     return [
       this.renderInput(
         jst.$input(
+          {cn: "--inputBox"},
           Object.assign(
             {
               type: this.opts.type ? this.opts.type : "text",
@@ -205,14 +207,21 @@ class Input extends jst.Object {
     return [
       jst.$div(
         {cn: "-input --input"},
-        jst.$fieldset(
-          this.opts.legend ? jst.$div({cn: '-inputLabel --inputLabel'}, this.opts.legend) : undefined,
-          this.opts.label  ? jst.$div({cn: '-inputLabel --inputLabel'}, this.opts.label) : undefined,
-          jst.$div(
-            {cn: "-inputInner"},
-            inners
-          )
-        )
+        jst.if(this.opts.legend || this.opts.label,
+               () => jst.$fieldset(
+                 this.opts.legend ? jst.$div({cn: '-inputLabel --inputLabel'}, this.opts.legend) : undefined,
+                 this.opts.label  ? jst.$div({cn: '-inputLabel --inputLabel'}, this.opts.label) : undefined,
+                 jst.$div(
+                   {cn: "-inputInner --inputInner"},
+                   inners
+                 )
+               ),
+               () => jst.$div(
+                 {cn: "-inputInner --inputInner"},
+                 inners
+               )
+              )
+
       )
     ];
   }
