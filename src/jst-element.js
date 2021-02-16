@@ -614,6 +614,28 @@ export class JstElement {
             console.warn("Not adding an element to the DOM", item.value.tag, item, this, jstComponent);
           }
         }
+        else if (item.type === JstElementType.TEXTNODE) {
+          if (this.el) {
+            // Need to add it
+            if (item.el) {
+              if (item.el.parentNode) {
+                item.el.parentNode.removeChild(item.el);
+              }
+              this.el.appendChild(item.el);
+            }
+            else {
+              item.el = document.createTextNode(item.value);
+              this.el.appendChild(item.el);
+            }
+          }
+          else if (jstComponent && jstComponent.parentEl) {
+            item.el = document.createTextNode(item.value);
+            jstComponent.parentEl.appendChild(item.el);
+          }
+          else {
+            console.warn("Not adding an element to the DOM", item.value.tag, item, this, jstComponent);
+          }
+        }
         else if (item.type === JstElementType.JST_COMPONENT) {
           this._moveOrRenderInDom(item, jstComponent);
         }
