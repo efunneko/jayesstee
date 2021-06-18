@@ -1,6 +1,6 @@
 {
   "name": "jayesstee.table",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Plugin for Jayesstee to easily add tables",
   "main": "dist/jayesstee.table.js",
   "homepage": "https://jayesstee.org",
@@ -29,6 +29,6 @@
   },
   "dependencies": {
     "babel-runtime": "^6.6.1",
-    "jayesstee": "^0.9.3"
+    "jayesstee": "^0.12.0"
   }
 }

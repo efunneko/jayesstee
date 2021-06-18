@@ -75,12 +75,6 @@ export class JstComponent {
       return;
     }
     
-    // Gather all the styles for this object
-    let css     = this.renderCss(opts);
-    if (css) {
-      jst.styleManager.updateCss(this, css);
-    }
-
     this._refCount++;
     // console.warn("refresh:", this._type, this._refCount);
     if (!this._jstEl && isParentUpdate ||
@@ -88,6 +82,14 @@ export class JstComponent {
         !isParentUpdate
        ) {
     
+      // Gather all the styles for this object
+      if (!opts || !opts.skipCss) {
+        let css     = this.renderCss(opts);
+        if (css) {
+          jst.styleManager.updateCss(this, css);
+        }
+      }
+
       // Create a new JST tree that will be compared against the existing one
       let items   = this._render();
 
