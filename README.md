@@ -11,6 +11,9 @@ spitting out some HTML in node.js) or can be used in the browser and fill in the
 DOM with HTMLElements, etc. It can also manage CSS with local scoping. Finally it adds
 some basic support for events and input data retrieval.
 
+Take a look at these codepens for working examples:  https://codepen.io/collection/nxdMer
+
+
 ## Examples
 
 ### Most basic usage - no templates or refreshable objects
