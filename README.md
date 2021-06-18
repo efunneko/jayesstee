@@ -35,7 +35,7 @@ Add a div with an unordered-list into the body of the page:
         )
     );
 
-## Build a webapp with it
+## Build a page using jst.Components
 
     import jst from 'jayesstee';
     
