@@ -332,6 +332,11 @@ export class JstElement {
 
     // console.log("CAC>" + " ".repeat(level*2), this.tag + this.id, newJst.tag+newJst.id);
 
+    // Check to see if this the old and new node are the same
+    if (this.id == newJst.id) {
+      return false;
+    }
+
     // First check the attributes, props and events
     // But only if we aren't the topNode
     if (!topNode) {
